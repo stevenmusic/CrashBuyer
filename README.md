@@ -1,7 +1,8 @@
 # CrashBuyer — Crash Buying Simulator · S&P 500
 
-Rewind the S&P 500 to any trading day of the last ~10 years, buy the crashes with a
-fixed drawdown allocation ladder, and see what the portfolio is worth today.
+Rewind the S&P 500 to any point in its published history — back to 1871 — buy the
+crashes with a fixed drawdown allocation ladder, and see what the portfolio is
+worth today. English and 繁體中文.
 
 A static page: plain HTML, CSS and ES modules, no build step, no dependencies, no
 external requests at runtime beyond an optional live price top-up.
@@ -36,8 +37,8 @@ derives from it.
 ## How the simulation behaves
 
 - **Day pointer** drives everything. Move it with the arrows, the number box, the
-  ← / → keys (hold Shift for 20 days), the crash preset buttons, or by clicking and
-  dragging on the chart.
+  ← / → keys (hold Shift for 20 bars), the crash preset buttons (1929, 1987, 2000,
+  2008, 2020, 2022), or by clicking and dragging on the chart.
 - **Units are fractional**: `units = amount / close`, exactly, with no minimum lot.
 - **The portfolio only counts trades that have already happened** — trades dated after
   the day pointer are listed but greyed out, so rewinding to 2018 never shows units
@@ -141,6 +142,7 @@ assets/model.js          ladder, drawdown maths, trade ledger
 assets/data.js           snapshot loading + live top-up
 assets/chart.js          canvas price chart
 assets/format.js         number and date formatting
+assets/i18n.js           English / 繁體中文 strings
 scripts/fetch-sp500.mjs  data fetcher used by CI
 data/sp500-daily.json    committed price series
 ```
