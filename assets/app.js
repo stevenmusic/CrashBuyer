@@ -114,10 +114,13 @@ const dom = {
   perfBody: el('perf-body'),
   perfYou: el('perf-you'),
   perfYouPct: el('perf-you-pct'),
+  perfYouBar: el('perf-you-bar'),
   perfLump: el('perf-lump'),
   perfLumpPct: el('perf-lump-pct'),
+  perfLumpBar: el('perf-lump-bar'),
   perfDca: el('perf-dca'),
   perfDcaPct: el('perf-dca-pct'),
+  perfDcaBar: el('perf-dca-bar'),
   perfExcess: el('perf-excess'),
   perfCagr: el('perf-cagr'),
   perfMaxdd: el('perf-maxdd'),
@@ -314,19 +317,32 @@ function setAction(action) {
   render();
 }
 
-/** Messages are stored as (key, args) so they survive a language switch. */
-function message(key, tone = 'error', ...args) {
-  lastMessage = key ? { key, tone, args } : null;
-  dom.tradeMsg.textContent = key ? t(key, ...args) : '';
-  dom.tradeMsg.dataset.tone = tone;
-  dom.tradeMsg.hidden = !key;
-}
-
-function messageRaw(text, tone) {
-  lastMessage = null;
+/**
+ * Messages keep a *thunk* rather than finished text, so switching language
+ * re-renders them from scratch. Storing the interpolated strings left dates and
+ * BUY/SELL labels frozen in whichever language was active when they were built.
+ */
+function show(text, tone) {
   dom.tradeMsg.textContent = text;
   dom.tradeMsg.dataset.tone = tone;
   dom.tradeMsg.hidden = !text;
+}
+
+function message(key, tone = 'error', argsFn = null) {
+  lastMessage = key ? { key, tone, argsFn } : null;
+  show(key ? t(key, ...(argsFn ? argsFn() : [])) : '', tone);
+}
+
+/** For text that is not a single key, e.g. a composed ledger error. */
+function messageFrom(producer, tone) {
+  lastMessage = { producer, tone };
+  show(producer(), tone);
+}
+
+function replayMessage() {
+  if (!lastMessage) return;
+  if (lastMessage.producer) messageFrom(lastMessage.producer, lastMessage.tone);
+  else message(lastMessage.key, lastMessage.tone, lastMessage.argsFn);
 }
 
 /** The trade the inputs currently describe, or null when the amount is empty. */
@@ -356,21 +372,19 @@ function execute() {
 
   const candidate = buildLedger([...state.trades, draft], state.startingCash);
   if (candidate.error) {
-    messageRaw(describeError(candidate.error), 'error');
+    messageFrom(() => describeError(candidate.error), 'error');
     return;
   }
 
   nextSeq++;
   state.trades.push(draft);
   dom.amountInput.value = '0';
-  message(
-    'msg.executed',
-    'ok',
+  message('msg.executed', 'ok', () => [
     t(draft.action === 'BUY' ? 'trade.buy' : 'trade.sell'),
     fmtUnits(draft.units),
     fmtPrice(draft.price),
-    formatDate(draft.date)
-  );
+    formatDate(draft.date),
+  ]);
   save();
   render();
 }
@@ -386,14 +400,14 @@ function suggest() {
       return;
     }
     dom.amountInput.value = (Math.floor(pf.marketValue * 100) / 100).toFixed(2);
-    message('msg.suggestSell', 'ok', fmtUnits(pf.units));
+    message('msg.suggestSell', 'ok', () => [fmtUnits(pf.units)]);
     render();
     return;
   }
 
   const armed = allocationRows(peak, state.startingCash, drawdown).filter((r) => r.armed);
   if (!armed.length) {
-    message('msg.noRung', 'error', percent(drawdown));
+    message('msg.noRung', 'error', () => [percent(drawdown)]);
     return;
   }
   if (pf.cash <= 0) {
@@ -404,13 +418,11 @@ function suggest() {
   const deepest = armed[armed.length - 1];
   const amount = Math.min(deepest.amount, pf.cash);
   dom.amountInput.value = String(Math.round(amount));
-  message(
-    'msg.suggestBuy',
-    'ok',
+  message('msg.suggestBuy', 'ok', () => [
     (deepest.drawdown * 100).toFixed(0),
     (deepest.invest * 100).toFixed(0),
-    amount < deepest.amount
-  );
+    amount < deepest.amount,
+  ]);
   render();
 }
 
@@ -441,7 +453,7 @@ function switchLang(lang) {
   applyStatic();
   applyInstrumentLabels();
   buildPresets();
-  if (lastMessage) message(lastMessage.key, lastMessage.tone, ...lastMessage.args);
+  replayMessage();
   renderDataStatus();
   save();
   render();
@@ -508,13 +520,11 @@ function renderAllocation({ peak, drawdown }) {
       use.addEventListener('click', () => {
         setAction('BUY');
         dom.amountInput.value = String(Math.round(row.amount));
-        message(
-          'msg.loadedRung',
-          'ok',
+        message('msg.loadedRung', 'ok', () => [
           (row.drawdown * 100).toFixed(0),
           money(row.amount),
-          formatDate(market().date)
-        );
+          formatDate(market().date),
+        ]);
         render();
       });
       tr.lastElementChild.appendChild(use);
@@ -523,12 +533,15 @@ function renderAllocation({ peak, drawdown }) {
   );
 }
 
+const cell = (label, value) => `<span class="cell"><span>${label}</span><b>${value}</b></span>`;
+
 function renderPreview({ date, currentPrice }) {
   const draft = draftTrade();
   dom.unitsOutput.value = draft ? fmtUnits(draft.units) : '0.0000';
 
   if (!draft) {
-    dom.previewRow.innerHTML = `<td colspan="9" class="empty">${t('trade.previewEmpty')}</td>`;
+    dom.previewRow.textContent = t('trade.previewEmpty');
+    dom.previewRow.classList.add('is-empty');
     dom.executeBtn.disabled = false;
     return;
   }
@@ -538,19 +551,19 @@ function renderPreview({ date, currentPrice }) {
   const tag = draft.action === 'BUY' ? 'tag-buy' : 'tag-sell';
   const label = t(draft.action === 'BUY' ? 'trade.buy' : 'trade.sell');
 
+  dom.previewRow.classList.remove('is-empty');
   dom.previewRow.innerHTML =
-    `<td>${state.day}</td>` +
-    `<td>${formatDate(date)}</td>` +
-    `<td class="num">${fmtPrice(currentPrice)}</td>` +
-    `<td><span class="tag ${tag}">${label}</span></td>` +
-    `<td class="num">${fmtUnits(row.units)}</td>` +
-    `<td class="num">${money(row.amount)}</td>` +
-    `<td class="num">${money(row.cashAfter)}</td>` +
-    `<td class="num">${fmtUnits(row.unitsAfter)}</td>` +
-    `<td class="num">${money(row.equityAfter)}</td>`;
+    cell(t('col.date'), `${formatDate(date)}`) +
+    cell(t('col.price'), fmtPrice(currentPrice)) +
+    cell(t('col.action'), `<span class="tag ${tag}">${label}</span>`) +
+    cell(t('col.units'), fmtUnits(row.units)) +
+    cell(t('col.amount'), money(row.amount)) +
+    cell(t('col.cashAfter'), money(row.cashAfter)) +
+    cell(t('col.unitsAfter'), fmtUnits(row.unitsAfter)) +
+    cell(t('col.equityAfter'), money(row.equityAfter));
 
   dom.executeBtn.disabled = Boolean(candidate.error);
-  if (candidate.error) messageRaw(describeError(candidate.error), 'error');
+  if (candidate.error) messageFrom(() => describeError(candidate.error), 'error');
 }
 
 function renderLog(rows) {
@@ -637,6 +650,12 @@ function renderPerformance(rows, pf) {
   dom.perfDca.textContent = money(dca);
   dom.perfDcaPct.textContent = gain(dca);
 
+  // Bars share one scale so the three outcomes are visually comparable.
+  const widest = Math.max(you, lump, dca, 1);
+  dom.perfYouBar.style.width = `${(you / widest) * 100}%`;
+  dom.perfLumpBar.style.width = `${(lump / widest) * 100}%`;
+  dom.perfDcaBar.style.width = `${(dca / widest) * 100}%`;
+
   const excess = you / lump - 1;
   dom.perfExcess.textContent = percentSigned(excess);
   dom.perfExcess.className = `kv-value ${excess >= 0 ? 'is-gain' : 'is-loss'}`;
@@ -717,7 +736,7 @@ function bindEvents() {
     const check = buildLedger(state.trades, value);
     if (check.error) {
       dom.startingCash.value = String(state.startingCash);
-      messageRaw(t('msg.cashTooLow', money(value), describeError(check.error)), 'error');
+      messageFrom(() => t('msg.cashTooLow', money(value), describeError(check.error)), 'error');
       return;
     }
     state.startingCash = value;

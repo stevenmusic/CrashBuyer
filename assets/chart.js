@@ -9,15 +9,17 @@ const PAD = { top: 12, right: 12, bottom: 24, left: 56 };
 const Y_TICKS = 5; // 5 intervals -> 6 labels, matching the reference layout.
 
 const COLORS = {
-  price: '#2c4f7c',
-  peak: '#b6b0a4',
-  grid: '#eeeae1',
-  axis: '#98928a',
-  episode: 'rgba(224, 49, 49, 0.06)',
-  episodeEdge: 'rgba(224, 49, 49, 0.16)',
-  pointer: '#b9a13a',
-  buy: '#2f9e44',
-  sell: '#e03131',
+  price: '#5aa9e6',
+  peak: '#5c6b7a',
+  grid: '#1c252d',
+  axis: '#64717e',
+  episode: 'rgba(236, 106, 117, 0.06)',
+  episodeEdge: 'rgba(236, 106, 117, 0.15)',
+  pointer: '#d9a441',
+  buy: '#4ec98a',
+  sell: '#ec6a75',
+  // Marker haloes punch back to the page ground, not to white.
+  ground: '#12181d',
 };
 
 export function createChart(canvas, tipEl, { onScrub }) {
@@ -227,7 +229,7 @@ export function createChart(canvas, tipEl, { onScrub }) {
       ctx.fillStyle = isBuy ? COLORS.buy : COLORS.sell;
       ctx.fill();
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = COLORS.ground;
       ctx.stroke();
     }
     ctx.restore();
@@ -250,7 +252,7 @@ export function createChart(canvas, tipEl, { onScrub }) {
     ctx.fillStyle = COLORS.pointer;
     ctx.fill();
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = '#fff';
+    ctx.strokeStyle = COLORS.ground;
     ctx.stroke();
     ctx.restore();
   }

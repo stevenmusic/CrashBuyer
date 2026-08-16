@@ -11,95 +11,187 @@
     <link rel="stylesheet" href="assets/styles.css" />
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2316375c'/%3E%3Cpath d='M5 11l6 8 5-5 5 6 6-12' fill='none' stroke='%23f5c518' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%230c1013'/%3E%3Cpath d='M4 22l6-7 5 4 4-8 4 5 5-9' fill='none' stroke='%23d9a441' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
     />
   </head>
   <body>
-    <header class="topbar">
-      <span class="brand-mark">S&amp;P</span>
+    <!-- ============================================================ command -->
+    <header class="cmd">
+      <span class="cmd-mark">CB</span>
       <h1 data-i18n="app.brand">Crash Buying Simulator</h1>
-      <span class="brand-sub">S&amp;P 500</span>
-      <div class="topbar-right">
+      <span class="cmd-ticker"><b class="brand-sub">S&amp;P 500</b></span>
+
+      <div class="cmd-right">
+        <span id="data-status" class="data-status" data-state="loading">loading data…</span>
         <div id="lang-switch" class="lang-switch" role="group" data-i18n-aria="lang.label">
           <button type="button" class="lang-btn" data-lang="en" aria-pressed="true">EN</button>
           <button type="button" class="lang-btn" data-lang="zh" aria-pressed="false">中文</button>
         </div>
-        <span id="data-status" class="data-status" data-state="loading">loading data…</span>
-        <button id="reset-all" class="ghost-btn" type="button" data-i18n="btn.reset">Reset</button>
+        <button id="reset-all" class="btn btn-ghost" type="button" data-i18n="btn.reset">Reset</button>
       </div>
     </header>
 
     <p id="data-error" class="data-error" hidden></p>
     <div id="toasts" class="toasts" aria-live="polite"></div>
 
-    <main class="layout" id="layout" aria-busy="true">
-      <!-- ---------------------------------------------------------------- -->
-      <div class="col col-left">
-        <section class="panel" data-panel="market">
-          <div class="panel-head">
-            <h2 data-i18n="panel.currentMarket">Current Market</h2>
-            <span class="panel-note" data-i18n="panel.currentMarketNote">auto-updates by Day Pointer</span>
+    <main id="layout" aria-busy="true">
+      <!-- =============================================================== tape -->
+      <section class="tape">
+        <div class="tape-readouts">
+          <div class="readout">
+            <span class="readout-label" data-i18n="mkt.currentDate">Current Date</span>
+            <b id="cur-date" class="readout-value">—</b>
           </div>
-          <div class="panel-body">
-            <div class="kv">
-              <span class="kv-label" data-i18n="mkt.dayPointer">Day Pointer</span>
-              <span class="stepper">
-                <button id="day-prev" class="step-btn" type="button" data-i18n-aria="mkt.prevDay">&#9664;</button>
-                <input
-                  id="day-input"
-                  class="step-input"
-                  type="number"
-                  min="1"
-                  step="1"
-                  inputmode="numeric"
-                  data-i18n-aria="mkt.dayPointer"
-                />
-                <button id="day-next" class="step-btn" type="button" data-i18n-aria="mkt.nextDay">&#9654;</button>
-                <span class="step-total">/ <b id="day-total">—</b></span>
-              </span>
-            </div>
-            <div class="kv">
-              <span class="kv-label" data-i18n="mkt.currentDate">Current Date</span>
-              <span id="cur-date" class="kv-value">—</span>
-            </div>
-            <div class="kv">
-              <span class="kv-label" data-i18n="mkt.currentPrice">Current Price</span>
-              <span id="cur-price" class="kv-value">—</span>
-            </div>
-            <div class="kv">
-              <span class="kv-label" data-i18n="mkt.currentDrawdown">Current Drawdown</span>
-              <span id="cur-dd" class="kv-value">—</span>
-            </div>
-            <div class="kv">
-              <span class="kv-label" data-i18n="mkt.peakToDate">Peak To Date</span>
-              <span id="cur-peak" class="kv-value">—</span>
-            </div>
+          <div class="readout readout-lead">
+            <span class="readout-label" data-i18n="mkt.currentPrice">Current Price</span>
+            <b id="cur-price" class="readout-value">—</b>
+          </div>
+          <div class="readout">
+            <span class="readout-label" data-i18n="mkt.currentDrawdown">Current Drawdown</span>
+            <b id="cur-dd" class="readout-value">—</b>
+          </div>
+          <div class="readout">
+            <span class="readout-label" data-i18n="mkt.peakToDate">Peak To Date</span>
+            <b id="cur-peak" class="readout-value">—</b>
+          </div>
 
-            <div class="meter">
-              <div class="meter-bar"><span id="meter-marker" class="meter-marker"></span></div>
-              <div class="meter-ticks">
-                <span style="left: 25%">&minus;10%</span>
-                <span style="left: 37.5%">&minus;15%</span>
-                <span style="left: 50%">&minus;20%</span>
-                <span style="left: 62.5%">&minus;25%</span>
-                <span style="left: 75%">&minus;30%</span>
+          <div class="readout readout-pointer">
+            <span class="readout-label" data-i18n="mkt.dayPointer">Day Pointer</span>
+            <span class="stepper">
+              <button id="day-prev" class="step-btn" type="button" data-i18n-aria="mkt.prevDay">&#9664;</button>
+              <input
+                id="day-input"
+                class="step-input"
+                type="number"
+                min="1"
+                step="1"
+                inputmode="numeric"
+                data-i18n-aria="mkt.dayPointer"
+              />
+              <button id="day-next" class="step-btn" type="button" data-i18n-aria="mkt.nextDay">&#9654;</button>
+              <span class="step-total">/&nbsp;<b id="day-total">—</b></span>
+            </span>
+          </div>
+        </div>
+
+        <div class="tape-meter">
+          <div class="meter-bar"><span id="meter-marker" class="meter-marker"></span></div>
+          <div class="meter-ticks">
+            <span style="left: 25%">&minus;10</span>
+            <span style="left: 37.5%">&minus;15</span>
+            <span style="left: 50%">&minus;20</span>
+            <span style="left: 62.5%">&minus;25</span>
+            <span style="left: 75%">&minus;30</span>
+          </div>
+        </div>
+
+        <div class="tape-controls">
+          <div id="presets" class="presets"></div>
+          <label class="alert-toggle">
+            <input id="alerts-toggle" type="checkbox" />
+            <span data-i18n="alerts.label">Alert on every −10% of drawdown</span>
+          </label>
+        </div>
+        <p id="alerts-hint" class="alerts-hint" hidden></p>
+      </section>
+
+      <!-- ============================================================== chart -->
+      <section class="board board-chart">
+        <div class="board-head">
+          <h2 id="chart-title">S&amp;P 500 · Historical Price</h2>
+          <div id="chart-legend" class="legend">
+            <button class="legend-item" data-series="price" aria-pressed="true">
+              <i class="swatch swatch-price"></i><span data-i18n="legend.price">Price</span>
+            </button>
+            <button class="legend-item" data-series="peak" aria-pressed="true">
+              <i class="swatch swatch-peak"></i><span data-i18n="legend.peak">Peak</span>
+            </button>
+            <button class="legend-item" data-series="buy" aria-pressed="true">
+              <i class="swatch swatch-buy"></i><span data-i18n="legend.buy">BUY</span>
+            </button>
+            <button class="legend-item" data-series="sell" aria-pressed="true">
+              <i class="swatch swatch-sell"></i><span data-i18n="legend.sell">SELL</span>
+            </button>
+            <button id="log-toggle" class="legend-item legend-log" aria-pressed="true">
+              <span data-i18n="legend.log">LOG</span>
+            </button>
+          </div>
+        </div>
+        <div id="chart-wrap" class="chart-wrap">
+          <canvas id="chart" role="img" data-i18n-aria="chart.aria"></canvas>
+          <div id="chart-tip" class="chart-tip" hidden></div>
+        </div>
+        <p class="board-foot" data-i18n="chart.hint">Click or drag on the chart to move the Day Pointer.</p>
+      </section>
+
+      <!-- ========================================================== workbench -->
+      <div class="workbench">
+        <section class="board">
+          <div class="board-head">
+            <h2 data-i18n="panel.allocation">Allocation Guide</h2>
+            <span class="board-note" data-i18n="panel.allocationNote">% of budget</span>
+          </div>
+          <table class="grid alloc">
+            <colgroup>
+              <col class="c-dd" />
+              <col class="c-trigger" />
+              <col class="c-pct" />
+              <col class="c-amount" />
+              <col class="c-use" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th data-i18n="alloc.drawdown">Drawdown</th>
+                <th class="num" data-i18n="alloc.triggerPrice">Trigger Price</th>
+                <th class="num" data-i18n="alloc.pctInvest">% Invest</th>
+                <th class="num" data-i18n="alloc.amount">Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="alloc-body"></tbody>
+          </table>
+        </section>
+
+        <section class="board">
+          <div class="board-head"><h2 data-i18n="panel.tradeInput">Trade Input</h2></div>
+          <div class="board-body">
+            <div class="field">
+              <label data-i18n="trade.action">Action</label>
+              <div class="toggle">
+                <button id="act-buy" class="toggle-btn is-buy is-active" type="button" aria-pressed="true" data-i18n="trade.buy">
+                  Buy
+                </button>
+                <button id="act-sell" class="toggle-btn is-sell" type="button" aria-pressed="false" data-i18n="trade.sell">
+                  Sell
+                </button>
               </div>
             </div>
-
-            <label class="alert-toggle">
-              <input id="alerts-toggle" type="checkbox" />
-              <span data-i18n="alerts.label">Alert on every −10% of drawdown</span>
-            </label>
-            <p id="alerts-hint" class="alerts-hint" hidden></p>
-
-            <div id="presets" class="presets"></div>
+            <div class="field-pair">
+              <div class="field">
+                <label for="amount-input" data-i18n="trade.amount">Amount ($)</label>
+                <input id="amount-input" class="text-input num" type="number" min="0" step="100" inputmode="decimal" value="0" />
+              </div>
+              <div class="field">
+                <label for="units-output" data-i18n="trade.units">Units (auto)</label>
+                <input id="units-output" class="text-input num is-readonly" type="text" value="0.0000" readonly tabindex="-1" />
+              </div>
+            </div>
+            <div class="field-actions">
+              <button id="suggest-btn" class="btn btn-ghost" type="button" data-i18n="trade.suggest">Suggest</button>
+              <button id="execute-btn" class="btn btn-primary" type="button" data-i18n="trade.execute">Execute Trade</button>
+            </div>
+            <p id="trade-msg" class="trade-msg" hidden></p>
+            <div class="preview-strip">
+              <span class="preview-label" data-i18n="trade.preview">Trade Preview</span>
+              <div id="preview-row" class="preview-cells"></div>
+            </div>
           </div>
         </section>
 
-        <section class="panel" data-panel="portfolio">
-          <div class="panel-head"><h2 data-i18n="panel.portfolio">Portfolio</h2></div>
-          <div class="panel-body">
-            <div class="kv">
+        <section class="board">
+          <div class="board-head"><h2 data-i18n="panel.portfolio">Portfolio</h2></div>
+          <div class="board-body">
+            <div class="kv kv-input">
               <span class="kv-label" data-i18n="pf.startingCash" data-i18n-title="pf.startingCashHint">Cash Budget</span>
               <input id="starting-cash" class="cash-input" type="number" min="0" step="1000" inputmode="numeric" />
             </div>
@@ -138,198 +230,87 @@
             <p id="pf-pending" class="pf-pending" hidden></p>
           </div>
         </section>
-
-        <section class="panel" data-panel="performance">
-          <div class="panel-head">
-            <h2 data-i18n="panel.performance">Performance</h2>
-            <span class="panel-note" data-i18n="panel.performanceNote">since first trade</span>
-          </div>
-          <div class="panel-body">
-            <p id="perf-empty" class="perf-empty" data-i18n="perf.empty">
-              Log a trade to compare against buy &amp; hold.
-            </p>
-            <div id="perf-body" hidden>
-              <div class="kv">
-                <span class="kv-label" data-i18n="perf.strategy">Your strategy</span>
-                <span class="kv-pair"><b id="perf-you" class="kv-value">—</b><i id="perf-you-pct" class="kv-sub">—</i></span>
-              </div>
-              <div class="kv">
-                <span class="kv-label" data-i18n="perf.lump">Lump sum</span>
-                <span class="kv-pair"><b id="perf-lump" class="kv-value">—</b><i id="perf-lump-pct" class="kv-sub">—</i></span>
-              </div>
-              <div class="kv">
-                <span class="kv-label" data-i18n="perf.dca">Monthly DCA</span>
-                <span class="kv-pair"><b id="perf-dca" class="kv-value">—</b><i id="perf-dca-pct" class="kv-sub">—</i></span>
-              </div>
-              <div class="kv kv-total">
-                <span class="kv-label" data-i18n="perf.excess">vs lump sum</span>
-                <span id="perf-excess" class="kv-value">—</span>
-              </div>
-
-              <div class="stat-grid">
-                <div class="stat"><span data-i18n="perf.cagr">CAGR</span><b id="perf-cagr">—</b></div>
-                <div class="stat"><span data-i18n="perf.maxdd">Max Drawdown</span><b id="perf-maxdd">—</b></div>
-                <div class="stat"><span data-i18n="perf.vol">Volatility</span><b id="perf-vol">—</b></div>
-                <div class="stat"><span data-i18n="perf.sharpe">Sharpe</span><b id="perf-sharpe">—</b></div>
-                <div class="stat"><span data-i18n="perf.tim">Time in Market</span><b id="perf-tim">—</b></div>
-                <div class="stat"><span data-i18n="perf.span">Span</span><b id="perf-span">—</b></div>
-              </div>
-              <p class="perf-foot" data-i18n="perf.foot">Sharpe assumes a 0% risk-free rate.</p>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel" data-panel="allocation">
-          <div class="panel-head">
-            <h2 data-i18n="panel.allocation">Allocation Guide</h2>
-            <span class="panel-note" data-i18n="panel.allocationNote">% of starting cash</span>
-          </div>
-          <div class="panel-body panel-body-flush">
-            <table class="grid alloc">
-              <colgroup>
-                <col class="c-dd" />
-                <col class="c-trigger" />
-                <col class="c-pct" />
-                <col class="c-amount" />
-                <col class="c-use" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th data-i18n="alloc.drawdown">Drawdown</th>
-                  <th class="num" data-i18n="alloc.triggerPrice">Trigger Price</th>
-                  <th class="num" data-i18n="alloc.pctInvest">% Invest</th>
-                  <th class="num" data-i18n="alloc.amount">Amount</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="alloc-body"></tbody>
-            </table>
-          </div>
-        </section>
       </div>
 
-      <!-- ---------------------------------------------------------------- -->
-      <div class="col col-right">
-        <section class="panel" data-panel="chart">
-          <div class="panel-head">
-            <h2 id="chart-title">S&amp;P 500 · Historical Price</h2>
-            <div id="chart-legend" class="legend">
-              <button class="legend-item" data-series="price" aria-pressed="true">
-                <i class="swatch swatch-price"></i><span data-i18n="legend.price">Price</span>
-              </button>
-              <button class="legend-item" data-series="peak" aria-pressed="true">
-                <i class="swatch swatch-peak"></i><span data-i18n="legend.peak">Peak</span>
-              </button>
-              <button class="legend-item" data-series="buy" aria-pressed="true">
-                <i class="swatch swatch-buy"></i><span data-i18n="legend.buy">BUY</span>
-              </button>
-              <button class="legend-item" data-series="sell" aria-pressed="true">
-                <i class="swatch swatch-sell"></i><span data-i18n="legend.sell">SELL</span>
-              </button>
-              <button id="log-toggle" class="legend-item legend-log" aria-pressed="true">
-                <span data-i18n="legend.log">LOG</span>
-              </button>
-            </div>
-          </div>
-          <div class="panel-body panel-body-flush">
-            <div id="chart-wrap" class="chart-wrap">
-              <canvas id="chart" role="img" data-i18n-aria="chart.aria"></canvas>
-              <div id="chart-tip" class="chart-tip" hidden></div>
-            </div>
-            <p class="chart-hint" data-i18n="chart.hint">Click or drag on the chart to move the Day Pointer.</p>
-          </div>
-        </section>
-
-        <section class="panel" data-panel="trade">
-          <div class="panel-head"><h2 data-i18n="panel.tradeInput">Trade Input</h2></div>
-          <div class="panel-body">
-            <div class="trade-row">
-              <div class="field">
-                <label data-i18n="trade.action">Action</label>
-                <div class="toggle">
-                  <button id="act-buy" class="toggle-btn is-buy is-active" type="button" aria-pressed="true" data-i18n="trade.buy">
-                    Buy
-                  </button>
-                  <button id="act-sell" class="toggle-btn is-sell" type="button" aria-pressed="false" data-i18n="trade.sell">
-                    Sell
-                  </button>
-                </div>
+      <!-- ======================================================== performance -->
+      <section class="board">
+        <div class="board-head">
+          <h2 data-i18n="panel.performance">Performance</h2>
+          <span class="board-note" data-i18n="panel.performanceNote">on invested capital</span>
+        </div>
+        <div class="board-body">
+          <p id="perf-empty" class="perf-empty" data-i18n="perf.empty">
+            Log a trade to compare against buy &amp; hold.
+          </p>
+          <div id="perf-body" class="perf-grid" hidden>
+            <div class="perf-race">
+              <div class="race-row race-you">
+                <span class="race-name" data-i18n="perf.strategy">Your strategy</span>
+                <span class="race-track"><i id="perf-you-bar" class="race-bar"></i></span>
+                <b id="perf-you" class="race-value">—</b>
+                <i id="perf-you-pct" class="race-pct">—</i>
               </div>
-              <div class="field">
-                <label for="amount-input" data-i18n="trade.amount">Amount ($)</label>
-                <input id="amount-input" class="text-input num" type="number" min="0" step="100" inputmode="decimal" value="0" />
+              <div class="race-row">
+                <span class="race-name" data-i18n="perf.lump">Lump sum</span>
+                <span class="race-track"><i id="perf-lump-bar" class="race-bar"></i></span>
+                <b id="perf-lump" class="race-value">—</b>
+                <i id="perf-lump-pct" class="race-pct">—</i>
               </div>
-              <div class="field">
-                <label for="units-output" data-i18n="trade.units">Units (auto)</label>
-                <input id="units-output" class="text-input num is-readonly" type="text" value="0.0000" readonly tabindex="-1" />
+              <div class="race-row">
+                <span class="race-name" data-i18n="perf.dca">Monthly DCA</span>
+                <span class="race-track"><i id="perf-dca-bar" class="race-bar"></i></span>
+                <b id="perf-dca" class="race-value">—</b>
+                <i id="perf-dca-pct" class="race-pct">—</i>
               </div>
-              <div class="field field-actions">
-                <button id="suggest-btn" class="ghost-btn tall" type="button" data-i18n="trade.suggest">Suggest</button>
-                <button id="execute-btn" class="primary-btn" type="button" data-i18n="trade.execute">Execute Trade</button>
+              <div class="race-row race-excess">
+                <span class="race-name" data-i18n="perf.excess">vs lump sum</span>
+                <span class="race-track"></span>
+                <b id="perf-excess" class="race-value">—</b>
+                <i class="race-pct"></i>
               </div>
             </div>
 
-            <p id="trade-msg" class="trade-msg" hidden></p>
-
-            <div class="preview">
-              <div class="preview-head">
-                <span data-i18n="trade.preview">Trade Preview</span>
-                <span class="preview-note" data-i18n="trade.previewNote">mirrors one row of the transaction log</span>
-              </div>
-              <table class="grid preview-grid">
-                <thead>
-                  <tr>
-                    <th data-i18n="col.day">Day</th>
-                    <th data-i18n="col.date">Date</th>
-                    <th class="num" data-i18n="col.price">Price</th>
-                    <th data-i18n="col.action">Action</th>
-                    <th class="num" data-i18n="col.units">Units</th>
-                    <th class="num" data-i18n="col.amount">Amount</th>
-                    <th class="num" data-i18n="col.cashAfter">Cash After</th>
-                    <th class="num" data-i18n="col.unitsAfter">Units After</th>
-                    <th class="num" data-i18n="col.equityAfter">Equity After</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr id="preview-row">
-                    <td colspan="9" class="empty">—</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div class="stat-grid">
+              <div class="stat"><span data-i18n="perf.cagr">CAGR</span><b id="perf-cagr">—</b></div>
+              <div class="stat"><span data-i18n="perf.maxdd">Max Drawdown</span><b id="perf-maxdd">—</b></div>
+              <div class="stat"><span data-i18n="perf.vol">Volatility</span><b id="perf-vol">—</b></div>
+              <div class="stat"><span data-i18n="perf.sharpe">Sharpe</span><b id="perf-sharpe">—</b></div>
+              <div class="stat"><span data-i18n="perf.tim">Time in Market</span><b id="perf-tim">—</b></div>
+              <div class="stat"><span data-i18n="perf.span">Span</span><b id="perf-span">—</b></div>
             </div>
           </div>
-        </section>
+          <p class="board-foot" data-i18n="perf.foot"></p>
+        </div>
+      </section>
 
-        <section class="panel" data-panel="log">
-          <div class="panel-head">
-            <h2 data-i18n="panel.log">Transaction Log</h2>
-            <span id="log-count" class="panel-note">0 trades logged</span>
-          </div>
-          <div class="panel-body panel-body-flush">
-            <div class="table-scroll">
-              <table class="grid log">
-                <thead>
-                  <tr>
-                    <th class="num" data-i18n="col.num">#</th>
-                    <th class="num" data-i18n="col.day">Day</th>
-                    <th data-i18n="col.date">Date</th>
-                    <th class="num" data-i18n="col.price">Price</th>
-                    <th data-i18n="col.action">Action</th>
-                    <th class="num" data-i18n="col.units">Units</th>
-                    <th class="num" data-i18n="col.amount">Amount</th>
-                    <th class="num" data-i18n="col.cashAfter">Cash After</th>
-                    <th class="num" data-i18n="col.unitsAfter">Units After</th>
-                    <th class="num" data-i18n="col.equityAfter">Equity After</th>
-                    <th data-i18n="col.notes">Notes</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="log-body"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      </div>
+      <!-- ================================================================ log -->
+      <section class="board">
+        <div class="board-head">
+          <h2 data-i18n="panel.log">Transaction Log</h2>
+          <span id="log-count" class="board-note">0 trades logged</span>
+        </div>
+        <div class="table-scroll">
+          <table class="grid log">
+            <thead>
+              <tr>
+                <th class="num" data-i18n="col.num">#</th>
+                <th class="num" data-i18n="col.day">Day</th>
+                <th data-i18n="col.date">Date</th>
+                <th class="num" data-i18n="col.price">Price</th>
+                <th data-i18n="col.action">Action</th>
+                <th class="num" data-i18n="col.units">Units</th>
+                <th class="num" data-i18n="col.amount">Amount</th>
+                <th class="num" data-i18n="col.cashAfter">Cash After</th>
+                <th class="num" data-i18n="col.unitsAfter">Units After</th>
+                <th class="num" data-i18n="col.equityAfter">Equity After</th>
+                <th data-i18n="col.notes">Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="log-body"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
 
     <footer class="footer">

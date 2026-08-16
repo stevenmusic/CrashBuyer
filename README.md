@@ -7,6 +7,11 @@ worth today. English and 繁體中文.
 A static page: plain HTML, CSS and ES modules, no build step, no dependencies, no
 external requests at runtime beyond an optional live price top-up.
 
+The interface is a dark institutional terminal: a full-width market tape across
+the top, the chart as the hero, then a three-column workbench (ladder, ticket,
+portfolio) over the performance board and the log. Every colour is a custom
+property on `:root`, so the whole theme can be re-pointed from one block.
+
 ## Running it
 
 Any static server works — ES modules will not load over `file://`:
