@@ -1,0 +1,32 @@
+name: Probe data sources
+
+# Temporary diagnostic: reports which price endpoints answer a GitHub-hosted
+# runner. Delete once a working source is settled on.
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe
+        run: |
+          UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36'
+          probe() {
+            name="$1"; url="$2"
+            out=$(curl -sS -m 25 -A "$UA" -w '\n__HTTP__%{http_code}__SIZE__%{size_download}' "$url" 2>&1) || true
+            code=$(printf '%s' "$out" | sed -n 's/.*__HTTP__\([0-9]*\)__SIZE__.*/\1/p')
+            size=$(printf '%s' "$out" | sed -n 's/.*__SIZE__\([0-9]*\)$/\1/p')
+            head=$(printf '%s' "$out" | head -c 110 | tr '\n' ' ')
+            printf '%-14s http=%-5s bytes=%-9s %s\n' "$name" "${code:-ERR}" "${size:-0}" "$head"
+          }
+          probe fred-csv     'https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500'
+          probe fred-api     'https://api.stlouisfed.org/fred/series/observations?series_id=SP500&file_type=json'
+          probe stooq        'https://stooq.com/q/d/l/?s=%5Espx&i=d'
+          probe yahoo1       'https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1mo&interval=1d'
+          probe yahoo2       'https://query2.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=1mo&interval=1d'
+          probe stockanalys  'https://stockanalysis.com/api/symbol/i/SPX/history?range=10Y'
+          probe fmp-demo     'https://financialmodelingprep.com/api/v3/historical-price-full/%5EGSPC?apikey=demo'
+          probe nasdaq-multp 'https://data.nasdaq.com/api/v3/datasets/MULTPL/SP500_REAL_PRICE_MONTH.csv'
+          probe marketdata   'https://api.marketdata.app/v1/indices/candles/daily/SPX/?from=2024-01-01&to=2024-02-01'
+          probe ghraw-ctl    'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv'
