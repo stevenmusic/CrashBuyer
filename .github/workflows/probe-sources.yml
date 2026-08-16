@@ -13,22 +13,23 @@ jobs:
         run: |
           UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36'
           probe() {
-            name="$1"; shift
-            out=$(curl -sS -m 25 -A "$UA" -w '\n__HTTP__%{http_code}' "$@" 2>&1) || true
-            code=$(printf '%s' "$out" | tr -d '\n' | sed -n 's/.*__HTTP__\([0-9]*\).*/\1/p')
-            head=$(printf '%s' "$out" | head -c 130 | tr '\n' ' ')
-            printf '%-22s http=%-5s %s\n' "$name" "${code:-ERR}" "$head"
+            name="$1"; url="$2"
+            body=$(curl -sS -m 25 -A "$UA" "$url" 2>&1) || true
+            bars=$(printf '%s' "$body" | grep -o '"t":' | wc -l | tr -d ' ')
+            first=$(printf '%s' "$body" | grep -o '"t":"[0-9-]*"' | head -1)
+            last=$(printf '%s' "$body" | grep -o '"t":"[0-9-]*"' | tail -1)
+            head=$(printf '%s' "$body" | head -c 90 | tr '\n' ' ')
+            printf '%-26s bars=%-6s %s .. %s | %s\n' "$name" "$bars" "${first:-–}" "${last:-–}" "$head"
           }
-          # FRED graph CSV: HTTP/2 died mid-stream last time — retry over 1.1.
-          probe fred-csv-h2     'https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500'
-          probe fred-csv-h11    --http1.1 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500'
-          probe fred-csv-h11-c  --http1.1 --compressed 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500'
-          probe fred-downloaddata --http1.1 'https://fred.stlouisfed.org/data/SP500.txt'
-          # stockanalysis: host answered 400, so the shape was wrong, not blocked.
-          probe sa-lower        'https://stockanalysis.com/api/symbol/i/spx/history?range=10Y'
-          probe sa-period       'https://stockanalysis.com/api/symbol/i/spx/history?range=10Y&period=Day'
-          probe sa-quote        'https://stockanalysis.com/api/symbol/i/spx'
-          probe sa-etf-spy      'https://stockanalysis.com/api/symbol/s/spy/history?range=10Y&period=Day'
-          # Yahoo's older CSV download path uses a different backend.
-          probe yahoo-download  'https://query1.finance.yahoo.com/v7/finance/download/%5EGSPC?period1=1451865600&period2=1786924800&interval=1d&events=history'
-          probe stooq-referer   -H 'Referer: https://stooq.com/' 'https://stooq.com/q/d/l/?s=%5Espx&i=d'
+          B='https://stockanalysis.com/api/symbol'
+          probe idx-spx-day     "$B/i/spx/history?range=10Y&period=Day"
+          probe idx-spx-bare    "$B/i/spx/history"
+          probe idx-spx-noRange "$B/i/spx/history?period=Day"
+          probe idx-gspc        "$B/i/gspc/history?range=10Y&period=Day"
+          probe idx-inx         "$B/i/.inx/history?range=10Y&period=Day"
+          probe idx-us-spx      "$B/i/us-spx/history?range=10Y&period=Day"
+          probe idx-sp500       "$B/i/sp500/history?range=10Y&period=Day"
+          echo '--- ETF controls (known-good route) ---'
+          probe etf-spy-10y     "$B/s/spy/history?range=10Y&period=Day"
+          probe etf-spy-max     "$B/s/spy/history?range=MAX&period=Day"
+          probe etf-voo         "$B/s/voo/history?range=10Y&period=Day"
