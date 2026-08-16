@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-16T16:07:38.428Z",
+  "updatedAt": "2026-08-16T16:16:58.324Z",
   "default": "sp500",
   "instruments": [
     {
@@ -10,6 +10,42 @@
       "start": "2016-08-15",
       "end": "2026-08-14",
       "count": 2514
+    },
+    {
+      "id": "spy",
+      "symbol": "SPY",
+      "name": "SPY · SPDR S&P 500",
+      "proxy": true,
+      "start": "2016-08-16",
+      "end": "2026-08-14",
+      "count": 2513
+    },
+    {
+      "id": "voo",
+      "symbol": "VOO",
+      "name": "VOO · Vanguard S&P 500",
+      "proxy": true,
+      "start": "2016-08-16",
+      "end": "2026-08-14",
+      "count": 2513
+    },
+    {
+      "id": "ivv",
+      "symbol": "IVV",
+      "name": "IVV · iShares Core S&P 500",
+      "proxy": true,
+      "start": "2016-08-16",
+      "end": "2026-08-14",
+      "count": 2513
+    },
+    {
+      "id": "qqq",
+      "symbol": "QQQ",
+      "name": "QQQ · Invesco Nasdaq 100",
+      "proxy": true,
+      "start": "2016-08-16",
+      "end": "2026-08-14",
+      "count": 2513
     }
   ]
 }
