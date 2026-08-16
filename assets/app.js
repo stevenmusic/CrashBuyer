@@ -227,28 +227,35 @@ function describeError(error) {
 
 /* ---------------------------------------------------------------- alerts */
 
+/** At most this many alerts on screen at once — they are a nudge, not a log. */
+const MAX_TOASTS = 3;
+
 function toast(text) {
   const node = document.createElement('div');
   node.className = 'toast';
   node.textContent = text;
-  dom.toasts.appendChild(node);
-  setTimeout(() => node.remove(), 7000);
+  dom.toasts.prepend(node);
+  while (dom.toasts.children.length > MAX_TOASTS) dom.toasts.lastElementChild.remove();
+  setTimeout(() => node.remove(), 5000);
 }
 
-/**
- * Announces each new 10% band the drawdown falls through, once per selloff.
- * Recovering to a fresh high rearms the whole ladder.
- */
-function checkAlerts(snapshot) {
-  const depth = Math.max(0, -snapshot.drawdown) * 100;
-  const level = Math.floor(depth / ALERT_STEP) * ALERT_STEP;
+const bandAt = (drawdown) =>
+  Math.floor((Math.max(0, -drawdown) * 100) / ALERT_STEP) * ALERT_STEP;
 
-  if (level <= 0) {
-    alertedLevel = 0;
-    return;
-  }
-  if (!state.alerts || level <= alertedLevel) {
-    alertedLevel = Math.max(alertedLevel, level);
+/**
+ * Announces the deepest new 10% band the drawdown has fallen through, once per
+ * selloff; recovering to a fresh high rearms the ladder.
+ *
+ * Only stepping through time raises an alert. Dragging the chart, hitting a
+ * preset or typing a day number is navigation, not the market falling — firing
+ * on those buried the screen under one toast per bear market in 150 years of
+ * history, which is how this was first built and it was unusable.
+ */
+function checkAlerts(snapshot, notify) {
+  const level = bandAt(snapshot.drawdown);
+
+  if (!notify || !state.alerts || level <= alertedLevel) {
+    alertedLevel = level;
     return;
   }
 
@@ -277,20 +284,23 @@ async function setAlerts(on) {
   }
 
   // Re-arm from the current position so switching on does not replay old bands.
-  alertedLevel = Math.floor(Math.max(0, -market().drawdown) * 100 / ALERT_STEP) * ALERT_STEP;
+  alertedLevel = bandAt(market().drawdown);
   save();
 }
 
 /* ---------------------------------------------------------------- actions */
 
-function setDay(day, { persist = true } = {}) {
+function setDay(day, { persist = true, notify = false } = {}) {
   const next = clampDay(day);
   if (next === state.day) return;
   state.day = next;
-  checkAlerts(market());
+  checkAlerts(market(), notify);
   if (persist) save();
   render();
 }
+
+/** Moving one bar at a time — the case where a drawdown alert is meaningful. */
+const stepDay = (delta) => setDay(state.day + delta, { notify: true });
 
 function setAction(action) {
   state.action = action;
@@ -682,8 +692,8 @@ function buildPresets() {
 }
 
 function bindEvents() {
-  dom.dayPrev.addEventListener('click', () => setDay(state.day - 1));
-  dom.dayNext.addEventListener('click', () => setDay(state.day + 1));
+  dom.dayPrev.addEventListener('click', () => stepDay(-1));
+  dom.dayNext.addEventListener('click', () => stepDay(1));
   dom.dayInput.addEventListener('change', () => setDay(dom.dayInput.value));
 
   dom.startingCash.addEventListener('change', () => {
@@ -740,10 +750,10 @@ function bindEvents() {
     const step = event.shiftKey ? 20 : 1;
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      setDay(state.day - step);
+      stepDay(-step);
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      setDay(state.day + step);
+      stepDay(step);
     }
   });
 }
@@ -844,7 +854,7 @@ async function main() {
   for (const button of dom.legend.querySelectorAll('[data-series]')) {
     button.setAttribute('aria-pressed', String(state.visible[button.dataset.series]));
   }
-  alertedLevel = Math.floor((Math.max(0, -market().drawdown) * 100) / ALERT_STEP) * ALERT_STEP;
+  alertedLevel = bandAt(market().drawdown);
 
   applyInstrumentLabels();
   chart = createChart(dom.chart, dom.chartTip, { onScrub: (day) => setDay(day) });

@@ -892,9 +892,28 @@ body {
 /* -------------------------------------------------------------- narrow */
 
 @media (max-width: 1080px) {
+  /* One column: dissolve the two columns so the panels can be resequenced into
+     the order they are actually used, rather than all of the left column then
+     all of the right. */
   .layout {
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
+    /* The two-column layout aligns to the start; once the panels become direct
+       flex children they would inherit that and shrink to their content width. */
+    align-items: stretch;
   }
+
+  .col {
+    display: contents;
+  }
+
+  [data-panel='market'] { order: 1; }
+  [data-panel='chart'] { order: 2; }
+  [data-panel='allocation'] { order: 3; }
+  [data-panel='trade'] { order: 4; }
+  [data-panel='portfolio'] { order: 5; }
+  [data-panel='performance'] { order: 6; }
+  [data-panel='log'] { order: 7; }
 
   .trade-row {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -984,13 +1003,13 @@ body {
 
 .toasts {
   position: fixed;
-  top: 58px;
-  right: 18px;
+  right: 14px;
+  bottom: 14px;
   z-index: 50;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 8px;
-  max-width: min(340px, calc(100vw - 36px));
+  width: min(320px, calc(100vw - 28px));
   pointer-events: none;
 }
 
@@ -1009,7 +1028,7 @@ body {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateX(12px);
+    transform: translateY(8px);
   }
 }
 

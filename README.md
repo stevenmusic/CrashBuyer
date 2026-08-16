@@ -138,10 +138,15 @@ still loses to plain monthly DCA, which kept buying all the way down.
 
 ## Drawdown alerts
 
-Tick **Alert on every −10% of drawdown** in Current Market. As the day pointer
-moves, each new 10% band the index falls through raises an on-page toast, plus a
-browser notification if you grant permission. Recovering to a fresh high rearms
-the whole ladder, so the next selloff alerts from −10% again.
+Tick **Alert on every −10% of drawdown** in Current Market. Stepping forward
+through time — the arrows or the ← / → keys — raises a toast, and a browser
+notification if you grant permission, for each new 10% band the index falls
+through. Recovering to a fresh high rearms the ladder.
+
+Navigation does not alert. Dragging the chart, hitting a preset or typing a day
+number is browsing history, not the market falling; alerting on those produced
+one toast per bear market in 150 years and buried the screen. At most three
+alerts are on screen at once.
 
 ## Deploying
 
