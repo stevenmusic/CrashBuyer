@@ -9,17 +9,17 @@ const PAD = { top: 12, right: 12, bottom: 24, left: 56 };
 const Y_TICKS = 5; // 5 intervals -> 6 labels, matching the reference layout.
 
 const COLORS = {
-  price: '#5aa9e6',
-  peak: '#5c6b7a',
-  grid: '#1c252d',
-  axis: '#64717e',
-  episode: 'rgba(236, 106, 117, 0.06)',
-  episodeEdge: 'rgba(236, 106, 117, 0.15)',
-  pointer: '#d9a441',
-  buy: '#4ec98a',
-  sell: '#ec6a75',
-  // Marker haloes punch back to the page ground, not to white.
-  ground: '#12181d',
+  price: '#56727f',
+  peak: '#b6afa6',
+  grid: '#e9e6e1',
+  axis: '#8a837a',
+  episode: 'rgba(168, 90, 85, 0.05)',
+  episodeEdge: 'rgba(168, 90, 85, 0.13)',
+  pointer: '#5b8a86',
+  buy: '#3f7f66',
+  sell: '#a85a55',
+  // Marker haloes punch back to the panel ground.
+  ground: '#fbfaf9',
 };
 
 export function createChart(canvas, tipEl, { onScrub }) {

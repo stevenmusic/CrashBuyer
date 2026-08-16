@@ -7,10 +7,14 @@ worth today. English and 繁體中文.
 A static page: plain HTML, CSS and ES modules, no build step, no dependencies, no
 external requests at runtime beyond an optional live price top-up.
 
-The interface is a dark institutional terminal: a full-width market tape across
+The interface is a neutral institutional terminal: a full-width market tape across
 the top, the chart as the hero, then a three-column workbench (ladder, ticket,
-portfolio) over the performance board and the log. Every colour is a custom
-property on `:root`, so the whole theme can be re-pointed from one block.
+portfolio) over the performance board and the log.
+
+The palette is deliberately low-chroma — warm stone ground, one muted slate-teal
+for emphasis, and colour reserved for gain and loss. Every value is a custom
+property on `:root`, so the whole theme re-points from one block. All text pairs
+clear WCAG AA against their backgrounds (the smallest 10px labels included).
 
 ## Running it
 

@@ -1,26 +1,34 @@
-/* Crash Buying Simulator — dark institutional terminal.
-   Ink-dark ground, hairline rules, no chrome around the data. Labels are tiny
-   and quiet; the numbers carry the page. Every colour is a token, so the whole
-   theme can be re-pointed from :root. */
+/* Crash Buying Simulator — neutral institutional terminal.
+   Warm stone ground, hairline rules, no chrome around the data. The palette is
+   deliberately low-chroma and unmasculine: no cockpit black, no gold, no steel
+   blue. One muted slate-teal carries emphasis; everything else is greyscale
+   until a number needs to say gain or loss. All colour lives in :root. */
 
 :root {
-  --bg: #0c1013;
-  --surface: #12181d;
-  --surface-2: #172029;
-  --surface-3: #1d2831;
-  --line: #232e38;
-  --line-soft: #1a232b;
+  --bg: #f2f0ed;
+  --surface: #fbfaf9;
+  --surface-2: #f1efec;
+  --surface-3: #e7e4df;
+  --line: #dcd8d2;
+  --line-soft: #e9e6e1;
 
-  --ink: #e8eef3;
-  --ink-dim: #96a4b2;
-  --ink-faint: #64717e;
+  --ink: #2c2a27;
+  --ink-dim: #6b665f;
+  /* Dark enough to clear WCAG AA at the 10px label size. */
+  --ink-faint: #787168;
 
-  --accent: #d9a441;
-  --accent-dim: #8a6a2c;
-  --pos: #4ec98a;
-  --neg: #ec6a75;
-  --buy: #2f8f5b;
-  --sell: #b3414f;
+  /* Muted slate-teal: reads considered rather than corporate-blue. */
+  --accent: #5b8a86;
+  --accent-deep: #47716d;
+  --accent-dim: #a9c2bf;
+  --accent-wash: rgba(91, 138, 134, 0.1);
+
+  --pos: #3f7f66;
+  --neg: #a85a55;
+  --pos-wash: rgba(63, 127, 102, 0.12);
+  --neg-wash: rgba(168, 90, 85, 0.12);
+
+  --shadow: rgba(58, 52, 44, 0.1);
 
   --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     'PingFang TC', 'Noto Sans TC', sans-serif;
@@ -54,7 +62,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Shared label treatment: the quiet, wide-tracked micro-caps of a terminal. */
+/* Shared label treatment: quiet, wide-tracked micro-caps. */
 .readout-label,
 .board-head h2,
 .board-note,
@@ -77,7 +85,7 @@ body {
   gap: 12px;
   padding: 0 16px;
   height: 46px;
-  background: linear-gradient(180deg, #141b22, #0f151a);
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 
@@ -86,9 +94,9 @@ body {
   place-items: center;
   width: 26px;
   height: 26px;
-  border: 1px solid var(--accent-dim);
   border-radius: 3px;
-  color: var(--accent);
+  background: var(--accent-deep);
+  color: #fff;
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 700;
@@ -107,7 +115,7 @@ body {
 .cmd-ticker {
   padding-left: 12px;
   border-left: 1px solid var(--line);
-  color: var(--accent);
+  color: var(--accent-deep);
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: 0.06em;
@@ -140,7 +148,7 @@ body {
 
 .data-status[data-state='live']::before {
   background: var(--pos);
-  box-shadow: 0 0 0 3px rgba(78, 201, 138, 0.16);
+  box-shadow: 0 0 0 3px var(--pos-wash);
 }
 
 .data-status[data-state='daily']::before {
@@ -154,9 +162,9 @@ body {
 .data-error {
   margin: 0;
   padding: 9px 16px;
-  background: rgba(236, 106, 117, 0.1);
-  border-bottom: 1px solid rgba(236, 106, 117, 0.32);
-  color: #f3a3aa;
+  background: var(--neg-wash);
+  border-bottom: 1px solid rgba(168, 90, 85, 0.3);
+  color: #8f4a46;
   font-size: 12.5px;
 }
 
@@ -176,29 +184,29 @@ body {
 
 .btn-ghost {
   border: 1px solid var(--line);
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--ink-dim);
 }
 
 .btn-ghost:hover {
-  border-color: #33414e;
-  background: var(--surface-3);
+  border-color: var(--ink-faint);
+  background: var(--surface-2);
   color: var(--ink);
 }
 
 .btn-primary {
-  border: 1px solid #2a5f8f;
-  background: linear-gradient(180deg, #2d6fa8, #235d8f);
+  border: 1px solid var(--accent-deep);
+  background: var(--accent-deep);
   color: #fff;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(180deg, #357cb9, #2a6a9f);
+  background: #3d635f;
 }
 
 .btn-primary:disabled {
   border-color: var(--line);
-  background: var(--surface-2);
+  background: var(--surface-3);
   color: var(--ink-faint);
   cursor: default;
 }
@@ -228,8 +236,8 @@ body {
 }
 
 .lang-btn[aria-pressed='true'] {
-  background: var(--accent);
-  color: #14181c;
+  background: var(--accent-deep);
+  color: #fff;
 }
 
 /* =================================================================== layout */
@@ -255,7 +263,8 @@ main {
 .tape {
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  background: var(--surface);
+  box-shadow: 0 1px 2px var(--shadow);
   padding: 12px 16px 14px;
 }
 
@@ -288,7 +297,7 @@ main {
 /* The price is the anchor of the whole strip. */
 .readout-lead .readout-value {
   font-size: 24px;
-  color: var(--accent);
+  color: var(--accent-deep);
 }
 
 .readout-pointer {
@@ -318,7 +327,7 @@ main {
 }
 
 .step-btn:disabled {
-  opacity: 0.32;
+  opacity: 0.35;
   cursor: default;
 }
 
@@ -327,7 +336,7 @@ main {
 .text-input {
   border: 1px solid var(--line);
   border-radius: 3px;
-  background: #0b0f13;
+  background: #fff;
   color: var(--ink);
   font-family: var(--mono);
   font-weight: 600;
@@ -336,7 +345,8 @@ main {
 .step-input:focus,
 .cash-input:focus,
 .text-input:focus {
-  border-color: var(--accent-dim);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-wash);
   outline: none;
 }
 
@@ -360,7 +370,7 @@ main {
   font-weight: 600;
 }
 
-/* Drawdown gauge spanning the tape. */
+/* Drawdown gauge spanning the tape — desaturated sage through clay. */
 
 .tape-meter {
   margin: 14px 0 4px;
@@ -370,8 +380,7 @@ main {
   position: relative;
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(90deg, #2f8f5b 0%, #7fae3c 22%, #d9a441 46%, #d1793a 70%, #c0424f 100%);
-  opacity: 0.85;
+  background: linear-gradient(90deg, #6f9c86 0%, #9bb182 24%, #cbb887 48%, #c99b7f 72%, #b8746e 100%);
 }
 
 .meter-marker {
@@ -383,7 +392,7 @@ main {
   margin-left: -1.5px;
   border-radius: 1px;
   background: var(--ink);
-  box-shadow: 0 0 0 2px var(--bg);
+  box-shadow: 0 0 0 2px var(--surface);
   transition: left 0.12s ease-out;
 }
 
@@ -432,7 +441,7 @@ main {
 
 .preset:hover {
   border-color: var(--accent-dim);
-  color: var(--accent);
+  color: var(--accent-deep);
 }
 
 .preset[data-tone='neutral'] {
@@ -441,8 +450,8 @@ main {
 
 .preset.is-current {
   border-color: var(--accent);
-  background: rgba(217, 164, 65, 0.14);
-  color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent-deep);
 }
 
 .alert-toggle {
@@ -474,6 +483,7 @@ main {
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--surface);
+  box-shadow: 0 1px 2px var(--shadow);
   overflow: hidden;
 }
 
@@ -553,7 +563,7 @@ main {
 .kv-total {
   margin: 4px -14px;
   padding: 7px 14px;
-  background: var(--surface-2);
+  background: var(--accent-wash);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
@@ -564,7 +574,7 @@ main {
 
 .kv-total .kv-value {
   font-size: 15px;
-  color: var(--accent);
+  color: var(--accent-deep);
 }
 
 .cash-input {
@@ -684,12 +694,12 @@ main {
 
 /* An armed rung is lit, not shaded. */
 .alloc tbody tr.is-armed td {
-  background: rgba(217, 164, 65, 0.07);
+  background: var(--accent-wash);
   color: var(--ink);
 }
 
 .alloc tbody tr.is-armed .alloc-dd {
-  color: var(--accent);
+  color: var(--accent-deep);
 }
 
 .use-btn {
@@ -697,7 +707,7 @@ main {
   padding: 3px 4px;
   border: 1px solid var(--line);
   border-radius: 2px;
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--ink-dim);
   font-family: var(--sans);
   font-size: 10.5px;
@@ -707,9 +717,9 @@ main {
 }
 
 .use-btn:hover {
-  border-color: var(--accent-dim);
-  background: var(--surface-3);
-  color: var(--accent);
+  border-color: var(--accent);
+  background: #fff;
+  color: var(--accent-deep);
 }
 
 /* Transaction log */
@@ -719,7 +729,7 @@ main {
 }
 
 .log tbody tr.is-future {
-  opacity: 0.4;
+  opacity: 0.45;
 }
 
 .tag {
@@ -735,15 +745,15 @@ main {
 }
 
 .tag-buy {
-  background: rgba(78, 201, 138, 0.14);
+  background: var(--pos-wash);
   color: var(--pos);
-  box-shadow: inset 0 0 0 1px rgba(78, 201, 138, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(63, 127, 102, 0.28);
 }
 
 .tag-sell {
-  background: rgba(236, 106, 117, 0.14);
+  background: var(--neg-wash);
   color: var(--neg);
-  box-shadow: inset 0 0 0 1px rgba(236, 106, 117, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(168, 90, 85, 0.28);
 }
 
 .note-input {
@@ -767,8 +777,8 @@ main {
 }
 
 .note-input:focus {
-  border-color: var(--accent-dim);
-  background: #0b0f13;
+  border-color: var(--accent);
+  background: #fff;
   outline: none;
 }
 
@@ -815,12 +825,12 @@ main {
 }
 
 .legend-item[aria-pressed='false'] {
-  opacity: 0.35;
+  opacity: 0.4;
 }
 
 .legend-log[aria-pressed='true'] {
   border-color: var(--accent-dim);
-  color: var(--accent);
+  color: var(--accent-deep);
 }
 
 .swatch {
@@ -829,8 +839,8 @@ main {
   border-radius: 1px;
 }
 
-.swatch-price { background: #5aa9e6; }
-.swatch-peak { background: #5c6b7a; }
+.swatch-price { background: #56727f; }
+.swatch-peak { background: #b6afa6; }
 .swatch-buy { background: var(--pos); }
 .swatch-sell { background: var(--neg); }
 
@@ -854,8 +864,8 @@ main {
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 3px;
-  background: rgba(12, 16, 19, 0.96);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 4px 14px var(--shadow);
   color: var(--ink);
   font-family: var(--mono);
   font-size: 11px;
@@ -915,12 +925,12 @@ main {
 }
 
 .toggle-btn.is-buy.is-active {
-  background: var(--buy);
+  background: var(--pos);
   color: #fff;
 }
 
 .toggle-btn.is-sell.is-active {
-  background: var(--sell);
+  background: var(--neg);
   color: #fff;
 }
 
@@ -1043,7 +1053,7 @@ main {
 }
 
 .race-you .race-name {
-  color: var(--accent);
+  color: var(--accent-deep);
 }
 
 .race-track {
@@ -1059,7 +1069,7 @@ main {
   inset: 0 auto 0 0;
   width: 0;
   border-radius: 2px;
-  background: #3d566d;
+  background: #b8b2a8;
   transition: width 0.2s ease-out;
 }
 
@@ -1142,8 +1152,8 @@ main {
   border: 1px solid var(--line);
   border-left: 3px solid var(--neg);
   border-radius: 3px;
-  background: var(--surface-2);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  background: var(--surface);
+  box-shadow: 0 6px 18px var(--shadow);
   color: var(--ink);
   font-size: 12px;
   line-height: 1.5;
