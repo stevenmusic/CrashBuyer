@@ -9,15 +9,15 @@ const PAD = { top: 12, right: 12, bottom: 24, left: 56 };
 const Y_TICKS = 5; // 5 intervals -> 6 labels, matching the reference layout.
 
 const COLORS = {
-  price: '#56727f',
-  peak: '#b6afa6',
-  grid: '#e9e6e1',
-  axis: '#8a837a',
-  episode: 'rgba(168, 90, 85, 0.05)',
-  episodeEdge: 'rgba(168, 90, 85, 0.13)',
-  pointer: '#5b8a86',
-  buy: '#3f7f66',
-  sell: '#a85a55',
+  price: '#3c5a68',
+  peak: '#9c948a',
+  grid: '#e2ded8',
+  axis: '#6b655c',
+  episode: 'rgba(192, 39, 31, 0.055)',
+  episodeEdge: 'rgba(192, 39, 31, 0.15)',
+  pointer: '#2d6e69',
+  buy: '#137a38',
+  sell: '#c0271f',
   // Marker haloes punch back to the panel ground.
   ground: '#fbfaf9',
 };

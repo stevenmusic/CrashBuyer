@@ -11,10 +11,12 @@ The interface is a neutral institutional terminal: a full-width market tape acro
 the top, the chart as the hero, then a three-column workbench (ladder, ticket,
 portfolio) over the performance board and the log.
 
-The palette is deliberately low-chroma — warm stone ground, one muted slate-teal
-for emphasis, and colour reserved for gain and loss. Every value is a custom
-property on `:root`, so the whole theme re-points from one block. All text pairs
-clear WCAG AA against their backgrounds (the smallest 10px labels included).
+Chrome is neutral — warm stone ground, one slate-teal for emphasis — and colour
+is spent only where it means something. Buy/gain and sell/loss follow the
+international market convention (green up, red down); swapping the `--pos*` and
+`--neg*` blocks in `:root` gives the Greater China convention (red up, green
+down) with no other edit. Every foreground clears WCAG AA against its
+background, most of it AAA, down to the 10px micro-caps labels.
 
 ## Running it
 

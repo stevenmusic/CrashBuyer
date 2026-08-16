@@ -5,30 +5,35 @@
    until a number needs to say gain or loss. All colour lives in :root. */
 
 :root {
-  --bg: #f2f0ed;
+  --bg: #eeece8;
   --surface: #fbfaf9;
-  --surface-2: #f1efec;
-  --surface-3: #e7e4df;
-  --line: #dcd8d2;
-  --line-soft: #e9e6e1;
+  --surface-2: #f0eeea;
+  --surface-3: #e3dfd9;
+  --line: #cec9c1;
+  --line-soft: #e2ded8;
 
-  --ink: #2c2a27;
-  --ink-dim: #6b665f;
-  /* Dark enough to clear WCAG AA at the 10px label size. */
-  --ink-faint: #787168;
+  --ink: #1c1a18;
+  --ink-dim: #56514a;
+  --ink-faint: #6b655c;
 
-  /* Muted slate-teal: reads considered rather than corporate-blue. */
-  --accent: #5b8a86;
-  --accent-deep: #47716d;
-  --accent-dim: #a9c2bf;
-  --accent-wash: rgba(91, 138, 134, 0.1);
+  /* Neutral slate-teal for chrome and emphasis — never for buy/sell. */
+  --accent: #2d6e69;
+  --accent-deep: #245853;
+  --accent-dim: #8fb3af;
+  --accent-wash: rgba(45, 110, 105, 0.1);
 
-  --pos: #3f7f66;
-  --neg: #a85a55;
-  --pos-wash: rgba(63, 127, 102, 0.12);
-  --neg-wash: rgba(168, 90, 85, 0.12);
+  /* Buy/gain and sell/loss follow the international market convention: green
+     up, red down. Swap these two blocks to get the Greater China convention
+     (red up, green down) — nothing else in the stylesheet needs to change.
+     Both are deep enough to carry white text and to clear AA as text. */
+  --pos: #137a38;
+  --pos-fill: #116b32;
+  --neg: #c0271f;
+  --neg-fill: #b21d16;
+  --pos-wash: rgba(19, 122, 56, 0.13);
+  --neg-wash: rgba(192, 39, 31, 0.13);
 
-  --shadow: rgba(58, 52, 44, 0.1);
+  --shadow: rgba(48, 42, 34, 0.12);
 
   --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     'PingFang TC', 'Noto Sans TC', sans-serif;
@@ -163,8 +168,8 @@ body {
   margin: 0;
   padding: 9px 16px;
   background: var(--neg-wash);
-  border-bottom: 1px solid rgba(168, 90, 85, 0.3);
-  color: #8f4a46;
+  border-bottom: 1px solid rgba(192, 39, 31, 0.35);
+  color: #96201a;
   font-size: 12.5px;
 }
 
@@ -201,7 +206,7 @@ body {
 }
 
 .btn-primary:hover {
-  background: #3d635f;
+  background: #1c443f;
 }
 
 .btn-primary:disabled {
@@ -380,7 +385,7 @@ main {
   position: relative;
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(90deg, #6f9c86 0%, #9bb182 24%, #cbb887 48%, #c99b7f 72%, #b8746e 100%);
+  background: linear-gradient(90deg, #137a38 0%, #7f9b2f 26%, #c8971b 50%, #cf6a1c 74%, #c0271f 100%);
 }
 
 .meter-marker {
@@ -703,7 +708,9 @@ main {
 }
 
 .use-btn {
+  /* Fills a narrow column, but does not sprawl when the ladder spans the page. */
   width: 100%;
+  max-width: 92px;
   padding: 3px 4px;
   border: 1px solid var(--line);
   border-radius: 2px;
@@ -747,13 +754,13 @@ main {
 .tag-buy {
   background: var(--pos-wash);
   color: var(--pos);
-  box-shadow: inset 0 0 0 1px rgba(63, 127, 102, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(19, 122, 56, 0.35);
 }
 
 .tag-sell {
   background: var(--neg-wash);
   color: var(--neg);
-  box-shadow: inset 0 0 0 1px rgba(168, 90, 85, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(192, 39, 31, 0.35);
 }
 
 .note-input {
@@ -839,8 +846,8 @@ main {
   border-radius: 1px;
 }
 
-.swatch-price { background: #56727f; }
-.swatch-peak { background: #b6afa6; }
+.swatch-price { background: #3c5a68; }
+.swatch-peak { background: #9c948a; }
 .swatch-buy { background: var(--pos); }
 .swatch-sell { background: var(--neg); }
 
@@ -925,12 +932,12 @@ main {
 }
 
 .toggle-btn.is-buy.is-active {
-  background: var(--pos);
+  background: var(--pos-fill);
   color: #fff;
 }
 
 .toggle-btn.is-sell.is-active {
-  background: var(--neg);
+  background: var(--neg-fill);
   color: #fff;
 }
 
@@ -1069,7 +1076,7 @@ main {
   inset: 0 auto 0 0;
   width: 0;
   border-radius: 2px;
-  background: #b8b2a8;
+  background: #a49d92;
   transition: width 0.2s ease-out;
 }
 
@@ -1201,8 +1208,16 @@ main {
 /* ================================================================== narrow */
 
 @media (max-width: 1180px) {
+  /* Three boards do not divide into two columns: the third wraps and leaves a
+     whole empty cell beside it. Give the ladder the full width instead — it is
+     a five-column table and wants the room — and let the ticket and the
+     portfolio pair up underneath, which fills the row. */
   .workbench {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .workbench > :first-child {
+    grid-column: 1 / -1;
   }
 
   .perf-grid {
@@ -1214,6 +1229,10 @@ main {
 @media (max-width: 860px) {
   .workbench {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workbench > :first-child {
+    grid-column: auto;
   }
 
   .readout-pointer,
