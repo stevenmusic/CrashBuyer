@@ -147,6 +147,13 @@ export function portfolioAt(ledgerRows, startingCash, day, currentPrice) {
 
   const marketValue = held * currentPrice;
   const equity = cash + marketValue;
+
+  // P&L is the same number either way — equity − startingCash expands to
+  // marketValue + withdrawn − invested — but the *rate* is only meaningful
+  // against the money actually committed. Dividing by starting cash silently
+  // credits the strategy for however much never left the sidelines.
+  const pnl = marketValue + withdrawn - invested;
+
   return {
     cash,
     units: held,
@@ -154,12 +161,8 @@ export function portfolioAt(ledgerRows, startingCash, day, currentPrice) {
     equity,
     invested,
     withdrawn,
-    // What the committed money itself did, ignoring cash that never went in.
-    // Idle cash drags the headline return down and hides how the buys did.
-    investedPnl: invested > 0 ? marketValue + withdrawn - invested : 0,
-    returnOnInvested: invested > 0 ? (marketValue + withdrawn - invested) / invested : null,
-    pnl: equity - startingCash,
-    returnPct: startingCash > 0 ? (equity - startingCash) / startingCash : 0,
+    pnl,
+    returnPct: invested > 0 ? pnl / invested : null,
     applied,
     pending: ledgerRows.length - applied,
   };

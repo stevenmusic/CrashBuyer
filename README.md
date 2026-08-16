@@ -17,10 +17,10 @@ python3 -m http.server 8000    # then open http://localhost:8000
 
 ## The allocation ladder
 
-Fixed, and expressed as a share of **starting cash** (not of remaining cash), so the
-five rungs deploy the whole account across a full crash:
+Fixed, and expressed as a share of the **cash budget** (not of remaining cash), so the
+five rungs deploy the whole budget across a full crash:
 
-| Drawdown from peak | % invest | Amount on $200,000 |
+| Drawdown from peak | % invest | Amount on a $200,000 budget |
 | ------------------ | -------- | ------------------ |
 | −10%               | 10%      | $20,000            |
 | −15%               | 15%      | $30,000            |
@@ -46,13 +46,15 @@ derives from it.
 - **Impossible sequences are rejected** rather than silently allowed. Every trade is
   replayed in date order; if any point overdraws cash or sells units that are not
   held, the trade is refused with the reason.
-- **Totals are summed for you.** Portfolio shows *Total Invested* (every buy so
-  far) and, once you sell, *Total Sold* — no adding up the log by hand. Starting
-  Cash stays an input because the allocation ladder is a percentage of it.
-- **Two return figures**, because they answer different questions: return on
-  *total cash* counts the money that never left the sidelines, while return on
-  *invested* scores only what actually went in. Deploying half the account into a
-  crash that triples can read as +100% on one and +200% on the other.
+- **Totals are summed for you.** Portfolio shows *Total Invested* (every buy up
+  to the pointer) and, once you sell, *Total Sold* — no adding up the log by hand.
+- **Returns are measured on what you actually invested**, not on the budget.
+  Dividing by the budget would credit the strategy for money that never left the
+  sidelines: laddering $160k of a $200k account into 2008 reads +752% on the
+  committed capital and only +602% against the whole account, for the same trades.
+- **Cash Budget is the one input, and you can leave it alone.** It sets the
+  ladder's dollar amounts (10% of it, 15% of it, …) and caps how much you can
+  deploy. It is not the basis of any return.
 - **State persists** in `localStorage`, re-anchored by date on load so a growing
   series does not shift trades onto the wrong bar.
 
@@ -132,15 +134,18 @@ Once a trade is logged, the panel scores the ladder over the window from the
 **first trade to the day pointer** — the only fair window, since before the first
 trade the account is just cash.
 
-- **Lump sum** — the whole account invested on the first trade's bar.
-- **Monthly DCA** — the same cash in 12 equal monthly instalments from that bar;
-  anything not yet invested is still counted as cash.
+All three commit the **same Total Invested** from the first trade's bar, so the
+comparison is like for like — a benchmark deploying the whole budget against a
+ladder that only spent part of it would be measuring two different bets.
+
+- **Lump sum** — that amount invested all at once on the first trade's bar.
+- **Monthly DCA** — the same amount in 12 equal monthly instalments from that bar.
 - **CAGR, max drawdown, volatility, Sharpe, time in market**, computed from the
   portfolio's own equity curve. Volatility is annualised from the series' actual
   bar frequency rather than an assumed 252, because the history mixes monthly
   bars with daily ones. Sharpe assumes a 0% risk-free rate.
 
-Laddering into the 2008 crash, for instance, beats lump sum by about 20% — and
+Laddering into the 2008 crash, for instance, beats lump sum by about 46% — and
 still loses to plain monthly DCA, which kept buying all the way down.
 
 ## Drawdown alerts

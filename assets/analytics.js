@@ -45,19 +45,23 @@ const yearsBetween = (a, b) => (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T
  * CAGR, worst peak-to-trough fall, annualised volatility, Sharpe and the share
  * of bars holding any position.
  *
+ * CAGR is measured on `base` growing to `final` — the caller passes the money
+ * actually committed, so idle cash neither flatters nor drags it. Drawdown and
+ * volatility still come from the account's equity path, which is what an
+ * investor would actually have watched.
+ *
  * Volatility is annualised from the series' own bar frequency rather than an
  * assumed 252, because the history mixes monthly bars with daily ones. Sharpe
  * assumes a zero risk-free rate — stated rather than silently folded in.
  */
-export function stats(curve, dates, from, to, startingCash) {
+export function stats(curve, dates, from, to, base, final) {
   const years = yearsBetween(dates[from], dates[to]);
-  const final = curve.at(-1).equity;
 
-  if (!(years > 0) || !(startingCash > 0) || curve.length < 2) {
+  if (!(years > 0) || !(base > 0) || curve.length < 2) {
     return { cagr: null, maxDrawdown: null, volatility: null, sharpe: null, timeInMarket: null, years };
   }
 
-  const cagr = (final / startingCash) ** (1 / years) - 1;
+  const cagr = (final / base) ** (1 / years) - 1;
 
   let peak = -Infinity;
   let maxDrawdown = 0;

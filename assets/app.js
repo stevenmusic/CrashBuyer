@@ -88,8 +88,6 @@ const dom = {
   pfEquity: el('pf-equity'),
   pfPnl: el('pf-pnl'),
   pfRet: el('pf-ret'),
-  pfRoiRow: el('pf-roi-row'),
-  pfRoi: el('pf-roi'),
   pfPending: el('pf-pending'),
 
   allocBody: el('alloc-body'),
@@ -483,14 +481,8 @@ function renderPortfolio(pf) {
 
   dom.pfPnl.textContent = moneySigned(pf.pnl);
   dom.pfPnl.className = `kv-value ${pf.pnl >= 0 ? 'is-gain' : 'is-loss'}`;
-  dom.pfRet.textContent = percentSigned(pf.returnPct);
-  dom.pfRet.className = `kv-value ${pf.returnPct >= 0 ? 'is-gain' : 'is-loss'}`;
-
-  dom.pfRoiRow.hidden = pf.returnOnInvested === null;
-  if (pf.returnOnInvested !== null) {
-    dom.pfRoi.textContent = `${percentSigned(pf.returnOnInvested)}  (${moneySigned(pf.investedPnl)})`;
-    dom.pfRoi.className = `kv-value ${pf.returnOnInvested >= 0 ? 'is-gain' : 'is-loss'}`;
-  }
+  dom.pfRet.textContent = pf.returnPct === null ? '—' : percentSigned(pf.returnPct);
+  dom.pfRet.className = `kv-value ${(pf.returnPct ?? 0) >= 0 ? 'is-gain' : 'is-loss'}`;
 
   dom.pfPending.hidden = pf.pending === 0;
   dom.pfPending.textContent = pf.pending ? t('pf.pending', pf.pending) : '';
@@ -615,12 +607,12 @@ function renderLog(rows) {
  * Compares the ladder against two passive alternatives over the window running
  * from the first trade to the day pointer, and scores the equity curve.
  */
-function renderPerformance(rows) {
+function renderPerformance(rows, pf) {
   const applied = rows.filter((row) => row.day <= state.day);
   const from = applied.length ? applied[0].day - 1 : -1;
   const to = state.day - 1;
 
-  if (from < 0 || to <= from) {
+  if (from < 0 || to <= from || pf.invested <= 0) {
     dom.perfEmpty.hidden = false;
     dom.perfBody.hidden = true;
     return;
@@ -628,10 +620,15 @@ function renderPerformance(rows) {
   dom.perfEmpty.hidden = true;
   dom.perfBody.hidden = false;
 
+  // All three alternatives commit the same amount the user actually invested,
+  // so the comparison is like for like. `you` is what that money became —
+  // holdings plus anything already sold — rather than the whole account, which
+  // would otherwise include cash the benchmarks never had.
+  const base = pf.invested;
+  const you = pf.marketValue + pf.withdrawn;
   const curve = equityCurve(rows, state.startingCash, series.closes, from, to);
-  const you = curve.at(-1).equity;
-  const { lump, dca } = benchmarks(series.dates, series.closes, from, to, state.startingCash);
-  const gain = (value) => percentSigned(value / state.startingCash - 1);
+  const { lump, dca } = benchmarks(series.dates, series.closes, from, to, base);
+  const gain = (value) => percentSigned(value / base - 1);
 
   dom.perfYou.textContent = money(you);
   dom.perfYouPct.textContent = gain(you);
@@ -644,7 +641,7 @@ function renderPerformance(rows) {
   dom.perfExcess.textContent = percentSigned(excess);
   dom.perfExcess.className = `kv-value ${excess >= 0 ? 'is-gain' : 'is-loss'}`;
 
-  const s = stats(curve, series.dates, from, to, state.startingCash);
+  const s = stats(curve, series.dates, from, to, base, you);
   dom.perfCagr.textContent = s.cagr === null ? '—' : percentSigned(s.cagr);
   dom.perfCagr.className = s.cagr >= 0 ? 'is-gain' : 'is-loss';
   dom.perfMaxdd.textContent = s.maxDrawdown === null ? '—' : percent(s.maxDrawdown);
@@ -660,8 +657,9 @@ function render() {
   const { rows } = ledger();
 
   renderMarket(snapshot);
-  renderPortfolio(portfolioAt(rows, state.startingCash, state.day, snapshot.currentPrice));
-  renderPerformance(rows);
+  const pf = portfolioAt(rows, state.startingCash, state.day, snapshot.currentPrice);
+  renderPortfolio(pf);
+  renderPerformance(rows, pf);
   renderAllocation(snapshot);
   renderPreview(snapshot);
   renderLog(rows);

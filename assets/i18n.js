@@ -38,7 +38,7 @@ const STRINGS = {
     'panel.currentMarketNote': 'auto-updates by Day Pointer',
     'panel.portfolio': 'Portfolio',
     'panel.allocation': 'Allocation Guide',
-    'panel.allocationNote': '% of starting cash',
+    'panel.allocationNote': '% of budget',
     'panel.chart': (name) => `${name} · Historical Price`,
     'panel.tradeInput': 'Trade Input',
     'panel.log': 'Transaction Log',
@@ -51,7 +51,8 @@ const STRINGS = {
     'mkt.prevDay': 'Previous day',
     'mkt.nextDay': 'Next day',
 
-    'pf.startingCash': 'Starting Cash',
+    'pf.startingCash': 'Cash Budget',
+    'pf.startingCashHint': 'Sets the allocation ladder amounts and caps how much you can deploy. Returns are measured on Total Invested, not on this.',
     'pf.invested': 'Total Invested',
     'pf.withdrawn': 'Total Sold',
     'pf.cashBalance': 'Cash Balance',
@@ -59,8 +60,8 @@ const STRINGS = {
     'pf.marketValue': 'Market Value',
     'pf.totalEquity': 'Total Equity',
     'pf.pnl': 'P&L',
-    'pf.returnPct': 'Return % (on total cash)',
-    'pf.returnOnInvested': 'Return % (on invested)',
+    'pf.returnPct': 'Return %',
+    'pf.returnHint': 'P&L divided by Total Invested — the money actually committed, not the starting cash.',
     'pf.pending': (n) =>
       n === 1
         ? '1 logged trade happens after this date and is not counted yet.'
@@ -118,16 +119,16 @@ const STRINGS = {
       `No allocation rung is armed at ${dd} — the first rung triggers at −10%.`,
     'msg.noCash': 'No cash left to deploy at this date.',
     'msg.suggestBuy': (dd, pct, capped) =>
-      `Suggested: the −${dd}% rung — ${pct}% of starting cash${capped ? ', capped by remaining cash' : ''}.`,
+      `Suggested: the −${dd}% rung — ${pct}% of budget${capped ? ', capped by remaining cash' : ''}.`,
     'msg.loadedRung': (dd, amount, date) =>
       `Loaded the −${dd}% rung: ${amount}. Execute to log it at ${date}.`,
     'msg.cashTooLow': (amount, reason) =>
-      `Starting cash of ${amount} cannot fund the logged trades. ${reason}`,
+      `A budget of ${amount} cannot fund the logged trades. ${reason}`,
     'msg.overdraw': (day, shortfall) =>
       `Trade on day ${day} would overdraw cash by ${shortfall}.`,
     'msg.oversell': (day) => `Trade on day ${day} would sell more units than are held.`,
 
-    'confirm.reset': 'Clear all trades and restore the default starting cash?',
+    'confirm.reset': 'Clear all trades and restore the default budget?',
     'footer.disclaimer':
       'Educational simulation only — not investment advice. Index prices exclude dividends, fees and taxes.',
     'proxy.note': (symbol) =>
@@ -135,7 +136,7 @@ const STRINGS = {
       'Drawdowns, the allocation ladder and returns are unaffected; add a FRED_API_KEY secret to switch to true index levels.',
 
     'panel.performance': 'Performance',
-    'panel.performanceNote': 'since first trade',
+    'panel.performanceNote': 'on invested capital',
     'perf.empty': 'Log a trade to compare against buy & hold.',
     'perf.strategy': 'Your strategy',
     'perf.lump': 'Lump sum',
@@ -148,7 +149,7 @@ const STRINGS = {
     'perf.tim': 'Time in Market',
     'perf.span': 'Span',
     'perf.years': (y) => `${y} yr`,
-    'perf.foot': 'Lump sum buys everything on your first trade date; DCA spreads the same cash over 12 monthly instalments from there. Sharpe assumes a 0% risk-free rate.',
+    'perf.foot': 'All three commit the same Total Invested from your first trade date: lump sum buys it all at once, DCA spreads it over 12 monthly instalments. Drawdown and volatility describe the account\u2019s equity path. Sharpe assumes a 0% risk-free rate.',
 
     'legend.log': 'LOG',
     'alerts.label': 'Alert on every −10% of drawdown',
@@ -203,7 +204,7 @@ const STRINGS = {
     'panel.currentMarketNote': '隨日期指標自動更新',
     'panel.portfolio': '投資組合',
     'panel.allocation': '配置指南',
-    'panel.allocationNote': '佔起始資金比例',
+    'panel.allocationNote': '佔資金預算比例',
     'panel.chart': (name) => `${name} · 歷史走勢`,
     'panel.tradeInput': '交易輸入',
     'panel.log': '交易紀錄',
@@ -216,7 +217,8 @@ const STRINGS = {
     'mkt.prevDay': '前一日',
     'mkt.nextDay': '後一日',
 
-    'pf.startingCash': '起始資金',
+    'pf.startingCash': '資金預算',
+    'pf.startingCashHint': '決定配置指南的各檔金額，並限制最多能投入多少。報酬率是以「累計投入」為基準，與這個數字無關。',
     'pf.invested': '累計投入',
     'pf.withdrawn': '累計賣出',
     'pf.cashBalance': '現金餘額',
@@ -224,8 +226,8 @@ const STRINGS = {
     'pf.marketValue': '市值',
     'pf.totalEquity': '總資產',
     'pf.pnl': '損益',
-    'pf.returnPct': '報酬率（對總資金）',
-    'pf.returnOnInvested': '報酬率（對已投入）',
+    'pf.returnPct': '報酬率',
+    'pf.returnHint': '損益 ÷ 累計投入——以實際投入的金額為基準，而非起始資金。',
     'pf.pending': (n) => `有 ${n} 筆已紀錄的交易發生在這個日期之後，尚未計入。`,
 
     'alloc.drawdown': '跌幅',
@@ -279,21 +281,21 @@ const STRINGS = {
     'msg.noRung': (dd) => `目前跌幅 ${dd}，尚未觸發任何配置檔位——第一檔在 −10% 觸發。`,
     'msg.noCash': '這個日期已經沒有現金可以投入。',
     'msg.suggestBuy': (dd, pct, capped) =>
-      `建議：−${dd}% 檔位——起始資金的 ${pct}%${capped ? '，已受剩餘現金限制' : ''}。`,
+      `建議：−${dd}% 檔位——資金預算的 ${pct}%${capped ? '，已受剩餘現金限制' : ''}。`,
     'msg.loadedRung': (dd, amount, date) =>
       `已載入 −${dd}% 檔位：${amount}。按「執行交易」即可記錄在 ${date}。`,
-    'msg.cashTooLow': (amount, reason) => `起始資金 ${amount} 不足以支應已紀錄的交易。${reason}`,
+    'msg.cashTooLow': (amount, reason) => `資金預算 ${amount} 不足以支應已紀錄的交易。${reason}`,
     'msg.overdraw': (day, shortfall) => `第 ${day} 天的交易會讓現金透支 ${shortfall}。`,
     'msg.oversell': (day) => `第 ${day} 天的交易會賣出超過持有的單位數。`,
 
-    'confirm.reset': '確定要清除所有交易並還原預設起始資金嗎？',
+    'confirm.reset': '確定要清除所有交易並還原預設資金預算嗎？',
     'footer.disclaimer': '僅供教學模擬，非投資建議。指數價格不含股息、手續費與稅負。',
     'proxy.note': (symbol) =>
       `價格為 ${symbol}，即追蹤該指數的 ETF——大約是指數點位的十分之一。` +
       '跌幅、配置階梯與報酬率都不受影響；加上 FRED_API_KEY secret 即可切換成真實指數點位。',
 
     'panel.performance': '績效',
-    'panel.performanceNote': '自第一筆交易起',
+    'panel.performanceNote': '以累計投入為基準',
     'perf.empty': '記錄一筆交易後，即可與長抱策略比較。',
     'perf.strategy': '你的策略',
     'perf.lump': '一次全買',
@@ -306,7 +308,7 @@ const STRINGS = {
     'perf.tim': '在場時間',
     'perf.span': '期間',
     'perf.years': (y) => `${y} 年`,
-    'perf.foot': '「一次全買」是在你第一筆交易當天把資金全部投入；「每月定額」則是自同一天起分 12 個月平均投入。夏普值假設無風險利率為 0%。',
+    'perf.foot': '三者都是從你第一筆交易當天投入同樣的「累計投入」金額：一次全買是一次到位，每月定額則分 12 個月平均投入。最大回撤與波動度描述的是帳戶權益曲線。夏普值假設無風險利率為 0%。',
 
     'legend.log': '對數',
     'alerts.label': '每下跌 10% 就通知我',

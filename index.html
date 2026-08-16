@@ -100,7 +100,7 @@
           <div class="panel-head"><h2 data-i18n="panel.portfolio">Portfolio</h2></div>
           <div class="panel-body">
             <div class="kv">
-              <span class="kv-label" data-i18n="pf.startingCash">Starting Cash</span>
+              <span class="kv-label" data-i18n="pf.startingCash" data-i18n-title="pf.startingCashHint">Cash Budget</span>
               <input id="starting-cash" class="cash-input" type="number" min="0" step="1000" inputmode="numeric" />
             </div>
             <div class="kv">
@@ -132,12 +132,8 @@
               <span id="pf-pnl" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label" data-i18n="pf.returnPct">Return % (on total cash)</span>
+              <span class="kv-label" data-i18n="pf.returnPct" data-i18n-title="pf.returnHint">Return %</span>
               <span id="pf-ret" class="kv-value">—</span>
-            </div>
-            <div class="kv" id="pf-roi-row" hidden>
-              <span class="kv-label" data-i18n="pf.returnOnInvested">Return % (on invested)</span>
-              <span id="pf-roi" class="kv-value">—</span>
             </div>
             <p id="pf-pending" class="pf-pending" hidden></p>
           </div>
