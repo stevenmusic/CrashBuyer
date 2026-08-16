@@ -131,6 +131,22 @@ const STRINGS = {
       `Prices are ${symbol}, the ETF that tracks the index — roughly a tenth of the index level. ` +
       'Drawdowns, the allocation ladder and returns are unaffected; add a FRED_API_KEY secret to switch to true index levels.',
 
+    'panel.performance': 'Performance',
+    'panel.performanceNote': 'since first trade',
+    'perf.empty': 'Log a trade to compare against buy & hold.',
+    'perf.strategy': 'Your strategy',
+    'perf.lump': 'Lump sum',
+    'perf.dca': 'Monthly DCA',
+    'perf.excess': 'vs lump sum',
+    'perf.cagr': 'CAGR',
+    'perf.maxdd': 'Max Drawdown',
+    'perf.vol': 'Volatility',
+    'perf.sharpe': 'Sharpe',
+    'perf.tim': 'Time in Market',
+    'perf.span': 'Span',
+    'perf.years': (y) => `${y} yr`,
+    'perf.foot': 'Lump sum buys everything on your first trade date; DCA spreads the same cash over 12 monthly instalments from there. Sharpe assumes a 0% risk-free rate.',
+
     'legend.log': 'LOG',
     'alerts.label': 'Alert on every −10% of drawdown',
     'alerts.blocked': 'Browser notifications are blocked; alerts will still appear on the page.',
@@ -269,6 +285,22 @@ const STRINGS = {
     'proxy.note': (symbol) =>
       `價格為 ${symbol}，即追蹤該指數的 ETF——大約是指數點位的十分之一。` +
       '跌幅、配置階梯與報酬率都不受影響；加上 FRED_API_KEY secret 即可切換成真實指數點位。',
+
+    'panel.performance': '績效',
+    'panel.performanceNote': '自第一筆交易起',
+    'perf.empty': '記錄一筆交易後，即可與長抱策略比較。',
+    'perf.strategy': '你的策略',
+    'perf.lump': '一次全買',
+    'perf.dca': '每月定額',
+    'perf.excess': '對比一次全買',
+    'perf.cagr': '年化報酬',
+    'perf.maxdd': '最大回撤',
+    'perf.vol': '年化波動',
+    'perf.sharpe': '夏普值',
+    'perf.tim': '在場時間',
+    'perf.span': '期間',
+    'perf.years': (y) => `${y} 年`,
+    'perf.foot': '「一次全買」是在你第一筆交易當天把資金全部投入；「每月定額」則是自同一天起分 12 個月平均投入。夏普值假設無風險利率為 0%。',
 
     'legend.log': '對數',
     'alerts.label': '每下跌 10% 就通知我',

@@ -119,6 +119,23 @@ The interface ships in English and 繁體中文, switchable from the top right a
 remembered in `localStorage`. Strings live in `assets/i18n.js`; anything a
 translation has not filled in falls back to English.
 
+## Performance panel
+
+Once a trade is logged, the panel scores the ladder over the window from the
+**first trade to the day pointer** — the only fair window, since before the first
+trade the account is just cash.
+
+- **Lump sum** — the whole account invested on the first trade's bar.
+- **Monthly DCA** — the same cash in 12 equal monthly instalments from that bar;
+  anything not yet invested is still counted as cash.
+- **CAGR, max drawdown, volatility, Sharpe, time in market**, computed from the
+  portfolio's own equity curve. Volatility is annualised from the series' actual
+  bar frequency rather than an assumed 252, because the history mixes monthly
+  bars with daily ones. Sharpe assumes a 0% risk-free rate.
+
+Laddering into the 2008 crash, for instance, beats lump sum by about 20% — and
+still loses to plain monthly DCA, which kept buying all the way down.
+
 ## Drawdown alerts
 
 Tick **Alert on every −10% of drawdown** in Current Market. As the day pointer
@@ -143,6 +160,7 @@ assets/data.js           snapshot loading + live top-up
 assets/chart.js          canvas price chart
 assets/format.js         number and date formatting
 assets/i18n.js           English / 繁體中文 strings
+assets/analytics.js      benchmarks and performance statistics
 scripts/fetch-sp500.mjs  data fetcher used by CI
 data/sp500-daily.json    committed price series
 ```

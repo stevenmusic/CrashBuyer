@@ -133,6 +133,46 @@
 
         <section class="panel">
           <div class="panel-head">
+            <h2 data-i18n="panel.performance">Performance</h2>
+            <span class="panel-note" data-i18n="panel.performanceNote">since first trade</span>
+          </div>
+          <div class="panel-body">
+            <p id="perf-empty" class="perf-empty" data-i18n="perf.empty">
+              Log a trade to compare against buy &amp; hold.
+            </p>
+            <div id="perf-body" hidden>
+              <div class="kv">
+                <span class="kv-label" data-i18n="perf.strategy">Your strategy</span>
+                <span class="kv-pair"><b id="perf-you" class="kv-value">—</b><i id="perf-you-pct" class="kv-sub">—</i></span>
+              </div>
+              <div class="kv">
+                <span class="kv-label" data-i18n="perf.lump">Lump sum</span>
+                <span class="kv-pair"><b id="perf-lump" class="kv-value">—</b><i id="perf-lump-pct" class="kv-sub">—</i></span>
+              </div>
+              <div class="kv">
+                <span class="kv-label" data-i18n="perf.dca">Monthly DCA</span>
+                <span class="kv-pair"><b id="perf-dca" class="kv-value">—</b><i id="perf-dca-pct" class="kv-sub">—</i></span>
+              </div>
+              <div class="kv kv-total">
+                <span class="kv-label" data-i18n="perf.excess">vs lump sum</span>
+                <span id="perf-excess" class="kv-value">—</span>
+              </div>
+
+              <div class="stat-grid">
+                <div class="stat"><span data-i18n="perf.cagr">CAGR</span><b id="perf-cagr">—</b></div>
+                <div class="stat"><span data-i18n="perf.maxdd">Max Drawdown</span><b id="perf-maxdd">—</b></div>
+                <div class="stat"><span data-i18n="perf.vol">Volatility</span><b id="perf-vol">—</b></div>
+                <div class="stat"><span data-i18n="perf.sharpe">Sharpe</span><b id="perf-sharpe">—</b></div>
+                <div class="stat"><span data-i18n="perf.tim">Time in Market</span><b id="perf-tim">—</b></div>
+                <div class="stat"><span data-i18n="perf.span">Span</span><b id="perf-span">—</b></div>
+              </div>
+              <p class="perf-foot" data-i18n="perf.foot">Sharpe assumes a 0% risk-free rate.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
             <h2 data-i18n="panel.allocation">Allocation Guide</h2>
             <span class="panel-note" data-i18n="panel.allocationNote">% of starting cash</span>
           </div>

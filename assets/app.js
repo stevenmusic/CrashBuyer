@@ -11,6 +11,7 @@ import {
   METER_FLOOR,
 } from './model.js';
 import { createChart } from './chart.js';
+import { equityCurve, stats, benchmarks } from './analytics.js';
 import { t, setLang, getLang, applyStatic, LANGS, DEFAULT_LANG } from './i18n.js';
 import {
   formatDate,
@@ -105,6 +106,22 @@ const dom = {
 
   logBody: el('log-body'),
   logCount: el('log-count'),
+
+  perfEmpty: el('perf-empty'),
+  perfBody: el('perf-body'),
+  perfYou: el('perf-you'),
+  perfYouPct: el('perf-you-pct'),
+  perfLump: el('perf-lump'),
+  perfLumpPct: el('perf-lump-pct'),
+  perfDca: el('perf-dca'),
+  perfDcaPct: el('perf-dca-pct'),
+  perfExcess: el('perf-excess'),
+  perfCagr: el('perf-cagr'),
+  perfMaxdd: el('perf-maxdd'),
+  perfVol: el('perf-vol'),
+  perfSharpe: el('perf-sharpe'),
+  perfTim: el('perf-tim'),
+  perfSpan: el('perf-span'),
 };
 
 /* ------------------------------------------------------------------ state */
@@ -570,12 +587,57 @@ function renderLog(rows) {
   );
 }
 
+/**
+ * Compares the ladder against two passive alternatives over the window running
+ * from the first trade to the day pointer, and scores the equity curve.
+ */
+function renderPerformance(rows) {
+  const applied = rows.filter((row) => row.day <= state.day);
+  const from = applied.length ? applied[0].day - 1 : -1;
+  const to = state.day - 1;
+
+  if (from < 0 || to <= from) {
+    dom.perfEmpty.hidden = false;
+    dom.perfBody.hidden = true;
+    return;
+  }
+  dom.perfEmpty.hidden = true;
+  dom.perfBody.hidden = false;
+
+  const curve = equityCurve(rows, state.startingCash, series.closes, from, to);
+  const you = curve.at(-1).equity;
+  const { lump, dca } = benchmarks(series.dates, series.closes, from, to, state.startingCash);
+  const gain = (value) => percentSigned(value / state.startingCash - 1);
+
+  dom.perfYou.textContent = money(you);
+  dom.perfYouPct.textContent = gain(you);
+  dom.perfLump.textContent = money(lump);
+  dom.perfLumpPct.textContent = gain(lump);
+  dom.perfDca.textContent = money(dca);
+  dom.perfDcaPct.textContent = gain(dca);
+
+  const excess = you / lump - 1;
+  dom.perfExcess.textContent = percentSigned(excess);
+  dom.perfExcess.className = `kv-value ${excess >= 0 ? 'is-gain' : 'is-loss'}`;
+
+  const s = stats(curve, series.dates, from, to, state.startingCash);
+  dom.perfCagr.textContent = s.cagr === null ? '—' : percentSigned(s.cagr);
+  dom.perfCagr.className = s.cagr >= 0 ? 'is-gain' : 'is-loss';
+  dom.perfMaxdd.textContent = s.maxDrawdown === null ? '—' : percent(s.maxDrawdown);
+  dom.perfMaxdd.className = 'is-loss';
+  dom.perfVol.textContent = s.volatility === null ? '—' : percent(s.volatility);
+  dom.perfSharpe.textContent = s.sharpe === null ? '—' : s.sharpe.toFixed(2);
+  dom.perfTim.textContent = s.timeInMarket === null ? '—' : percent(s.timeInMarket, 0);
+  dom.perfSpan.textContent = t('perf.years', s.years.toFixed(1));
+}
+
 function render() {
   const snapshot = market();
   const { rows } = ledger();
 
   renderMarket(snapshot);
   renderPortfolio(portfolioAt(rows, state.startingCash, state.day, snapshot.currentPrice));
+  renderPerformance(rows);
   renderAllocation(snapshot);
   renderPreview(snapshot);
   renderLog(rows);
