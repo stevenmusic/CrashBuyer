@@ -139,8 +139,8 @@ const STRINGS = {
     'footer.disclaimer':
       'Educational simulation only — not investment advice. Index prices exclude dividends, fees and taxes.',
     'proxy.note': (symbol) =>
-      `Prices are ${symbol}, the ETF that tracks the index — roughly a tenth of the index level. ` +
-      'Drawdowns, the allocation ladder and returns are unaffected; add a FRED_API_KEY secret to switch to true index levels.',
+      `Prices are ${symbol}, an ETF tracking the index — roughly a tenth of the index level. ` +
+      'Drawdowns, the allocation ladder and returns are unaffected. Pick S&P 500 above for index levels.',
 
     'panel.performance': 'Performance',
     'panel.performanceNote': 'on invested capital',
@@ -301,8 +301,8 @@ const STRINGS = {
     'confirm.reset': '確定要清除所有交易並還原預設階梯基準嗎？',
     'footer.disclaimer': '僅供教學模擬，非投資建議。指數價格不含股息、手續費與稅負。',
     'proxy.note': (symbol) =>
-      `價格為 ${symbol}，即追蹤該指數的 ETF——大約是指數點位的十分之一。` +
-      '跌幅、配置階梯與報酬率都不受影響；加上 FRED_API_KEY secret 即可切換成真實指數點位。',
+      `價格為 ${symbol}，追蹤該指數的 ETF——大約是指數點位的十分之一。` +
+      '跌幅、配置階梯與報酬率都不受影響。想看指數點位，在上方切換成 S&P 500 即可。',
 
     'panel.performance': '績效',
     'panel.performanceNote': '以累計投入為基準',
