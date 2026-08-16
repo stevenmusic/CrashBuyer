@@ -127,10 +127,11 @@ async function fromFred() {
  * ignored so the series behaves like a price index.
  */
 /**
- * Alpha Vantage, optional. `outputsize=full` reaches back to the late 1990s,
- * which is the only key-less-or-cheap way found to get daily bars before ~2016:
- * FRED's SP500 series is a rolling ten years and stockanalysis silently caps at
- * 10Y (every longer range returns one year). Covers ETFs, not the index.
+ * Alpha Vantage, optional and currently of little use: `outputsize=full` — the
+ * only setting that reaches past the last 100 bars — is a paid feature, so a
+ * free key buys nothing here. Kept because a paid key would work unchanged, and
+ * because the failure is worth logging explicitly rather than looking like a
+ * network problem. Covers ETFs, not the index.
  */
 /**
  * Alpha Vantage's free tier allows about five calls a minute and answers a
@@ -160,8 +161,13 @@ async function fromAlphaVantage(symbol) {
   let series = json?.['Time Series (Daily)'];
   if (!series) {
     const complaint = String(json?.Note ?? json?.Information ?? json?.['Error Message'] ?? 'unexpected payload');
-    // A throttle is worth one patient retry; a bad symbol or key is not.
-    if (!/thank you|frequency|spread|per minute/i.test(complaint)) throw new Error(complaint.slice(0, 90));
+    // Only a rate-limit complaint is worth waiting out. Every Alpha Vantage
+    // refusal opens with "Thank you for using Alpha Vantage!", including the
+    // one saying outputsize=full is paid — matching on that wasted a minute
+    // per instrument discovering a permanent condition.
+    if (!/frequency|spread out|per minute|calls per/i.test(complaint)) {
+      throw new Error(complaint.slice(0, 110));
+    }
     console.log('[fetch] Alpha Vantage throttled, backing off 60s');
     await sleep(60000);
     lastAlphaCall = Date.now();

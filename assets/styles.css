@@ -859,9 +859,6 @@ main {
   position: relative;
   height: 340px;
   padding: 10px 8px 0;
-  /* The canvas owns its gestures so two fingers pinch the chart rather than
-     zooming the page. Scroll the page from outside the plot. */
-  touch-action: none;
 }
 
 .chart-wrap canvas {
@@ -869,6 +866,11 @@ main {
   width: 100%;
   height: 100%;
   cursor: crosshair;
+  /* Must sit on the canvas itself, not the wrapper: touch-action is not
+     inherited, so a wrapper-only rule leaves the canvas on `auto` and the
+     browser claims the pan and pinch before the handlers ever see them.
+     Scroll the page from outside the plot. */
+  touch-action: none;
 }
 
 .chart-tip {

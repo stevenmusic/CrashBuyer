@@ -93,17 +93,23 @@ tool exists to show — October 1987 flattens from −20% in a session to about 
 — and a chart mixing resolutions invites comparing a smoothed 1930s with a
 jagged 2020s.
 
-### How far back
+### How far back — about ten years, and that is a hard ceiling
 
-Roughly ten years out of the box, because that is the ceiling of both key-less
-routes: FRED's `SP500` series is a rolling ten years, and stockanalysis silently
-caps at `10Y` (every longer range quietly returns one year — measured, not
-assumed).
+Every free route measured so far tops out at a decade:
 
-To reach back to the late 1990s, add a free [Alpha Vantage key][av] as the
-`ALPHAVANTAGE_API_KEY` secret. `outputsize=full` covers the ETFs from about 1999,
-so SPY/VOO/IVV/QQQ gain the dot-com bust and 2008. It does not carry the index
-itself, so ^GSPC stays on FRED's ten years.
+| Route                          | Depth on the free tier                         |
+| ------------------------------ | ---------------------------------------------- |
+| FRED `SP500`                   | rolling 10 years, and it rolls forward daily    |
+| stockanalysis.com              | silently caps at `10Y` — longer ranges return 1 |
+| Alpha Vantage                  | last 100 bars; `outputsize=full` is **paid**    |
+
+The Alpha Vantage path is implemented and would work unchanged with a paid key,
+but a free one buys nothing: it answers `outputsize=full` with "this is a premium
+feature" and the fetcher falls back. `START_FROM` in the fetcher sets a floor of
+2000-01-01, so a source that could reach it would be used — none currently can.
+
+Because FRED's window rolls, the index start date moves forward every day and
+cannot be pinned to a fixed year.
 
 [av]: https://www.alphavantage.co/support/#api-key
 
