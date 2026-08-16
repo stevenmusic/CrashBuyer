@@ -46,6 +46,13 @@ derives from it.
 - **Impossible sequences are rejected** rather than silently allowed. Every trade is
   replayed in date order; if any point overdraws cash or sells units that are not
   held, the trade is refused with the reason.
+- **Totals are summed for you.** Portfolio shows *Total Invested* (every buy so
+  far) and, once you sell, *Total Sold* — no adding up the log by hand. Starting
+  Cash stays an input because the allocation ladder is a percentage of it.
+- **Two return figures**, because they answer different questions: return on
+  *total cash* counts the money that never left the sidelines, while return on
+  *invested* scores only what actually went in. Deploying half the account into a
+  crash that triples can read as +100% on one and +200% on the other.
 - **State persists** in `localStorage`, re-anchored by date on load so a growing
   series does not shift trades onto the wrong bar.
 

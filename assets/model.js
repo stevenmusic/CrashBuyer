@@ -131,11 +131,17 @@ export function portfolioAt(ledgerRows, startingCash, day, currentPrice) {
   let cash = startingCash;
   let held = 0;
   let applied = 0;
+  // Running totals so the panel can show what was actually committed without
+  // anyone having to add up the transaction log by hand.
+  let invested = 0;
+  let withdrawn = 0;
 
   for (const row of ledgerRows) {
     if (row.day > day) break;
     cash = row.cashAfter;
     held = row.unitsAfter;
+    if (row.action === 'BUY') invested += row.amount;
+    else withdrawn += row.amount;
     applied++;
   }
 
@@ -146,6 +152,12 @@ export function portfolioAt(ledgerRows, startingCash, day, currentPrice) {
     units: held,
     marketValue,
     equity,
+    invested,
+    withdrawn,
+    // What the committed money itself did, ignoring cash that never went in.
+    // Idle cash drags the headline return down and hides how the buys did.
+    investedPnl: invested > 0 ? marketValue + withdrawn - invested : 0,
+    returnOnInvested: invested > 0 ? (marketValue + withdrawn - invested) / invested : null,
     pnl: equity - startingCash,
     returnPct: startingCash > 0 ? (equity - startingCash) / startingCash : 0,
     applied,

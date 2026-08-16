@@ -79,12 +79,17 @@ const dom = {
   alertsHint: el('alerts-hint'),
 
   startingCash: el('starting-cash'),
+  pfInvested: el('pf-invested'),
+  pfWithdrawnRow: el('pf-withdrawn-row'),
+  pfWithdrawn: el('pf-withdrawn'),
   pfCash: el('pf-cash'),
   pfUnits: el('pf-units'),
   pfMv: el('pf-mv'),
   pfEquity: el('pf-equity'),
   pfPnl: el('pf-pnl'),
   pfRet: el('pf-ret'),
+  pfRoiRow: el('pf-roi-row'),
+  pfRoi: el('pf-roi'),
   pfPending: el('pf-pending'),
 
   allocBody: el('alloc-body'),
@@ -468,6 +473,9 @@ function renderMarket({ date, currentPrice, peak, drawdown }) {
 }
 
 function renderPortfolio(pf) {
+  dom.pfInvested.textContent = money(pf.invested);
+  dom.pfWithdrawnRow.hidden = pf.withdrawn <= 0;
+  dom.pfWithdrawn.textContent = money(pf.withdrawn);
   dom.pfCash.textContent = money(pf.cash);
   dom.pfUnits.textContent = fmtUnits(pf.units);
   dom.pfMv.textContent = money(pf.marketValue);
@@ -477,6 +485,12 @@ function renderPortfolio(pf) {
   dom.pfPnl.className = `kv-value ${pf.pnl >= 0 ? 'is-gain' : 'is-loss'}`;
   dom.pfRet.textContent = percentSigned(pf.returnPct);
   dom.pfRet.className = `kv-value ${pf.returnPct >= 0 ? 'is-gain' : 'is-loss'}`;
+
+  dom.pfRoiRow.hidden = pf.returnOnInvested === null;
+  if (pf.returnOnInvested !== null) {
+    dom.pfRoi.textContent = `${percentSigned(pf.returnOnInvested)}  (${moneySigned(pf.investedPnl)})`;
+    dom.pfRoi.className = `kv-value ${pf.returnOnInvested >= 0 ? 'is-gain' : 'is-loss'}`;
+  }
 
   dom.pfPending.hidden = pf.pending === 0;
   dom.pfPending.textContent = pf.pending ? t('pf.pending', pf.pending) : '';

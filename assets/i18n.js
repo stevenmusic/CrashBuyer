@@ -52,12 +52,15 @@ const STRINGS = {
     'mkt.nextDay': 'Next day',
 
     'pf.startingCash': 'Starting Cash',
+    'pf.invested': 'Total Invested',
+    'pf.withdrawn': 'Total Sold',
     'pf.cashBalance': 'Cash Balance',
     'pf.unitsHeld': 'Units Held',
     'pf.marketValue': 'Market Value',
     'pf.totalEquity': 'Total Equity',
     'pf.pnl': 'P&L',
-    'pf.returnPct': 'Return %',
+    'pf.returnPct': 'Return % (on total cash)',
+    'pf.returnOnInvested': 'Return % (on invested)',
     'pf.pending': (n) =>
       n === 1
         ? '1 logged trade happens after this date and is not counted yet.'
@@ -214,12 +217,15 @@ const STRINGS = {
     'mkt.nextDay': '後一日',
 
     'pf.startingCash': '起始資金',
+    'pf.invested': '累計投入',
+    'pf.withdrawn': '累計賣出',
     'pf.cashBalance': '現金餘額',
     'pf.unitsHeld': '持有單位',
     'pf.marketValue': '市值',
     'pf.totalEquity': '總資產',
     'pf.pnl': '損益',
-    'pf.returnPct': '報酬率',
+    'pf.returnPct': '報酬率（對總資金）',
+    'pf.returnOnInvested': '報酬率（對已投入）',
     'pf.pending': (n) => `有 ${n} 筆已紀錄的交易發生在這個日期之後，尚未計入。`,
 
     'alloc.drawdown': '跌幅',
