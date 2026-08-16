@@ -1,0 +1,15 @@
+{
+  "updatedAt": "2026-08-16T16:07:38.428Z",
+  "default": "sp500",
+  "instruments": [
+    {
+      "id": "sp500",
+      "symbol": "^GSPC",
+      "name": "S&P 500",
+      "proxy": false,
+      "start": "2016-08-15",
+      "end": "2026-08-14",
+      "count": 2514
+    }
+  ]
+}

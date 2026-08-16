@@ -75,50 +75,75 @@ Prices are index closes: no dividends, fees, taxes or slippage. Educational only
 
 ## Data
 
-`data/sp500-daily.json` holds **daily** closes as parallel `dates` / `closes`
-arrays, covering roughly the last ten years.
+`data/instruments.json` lists what the picker offers; each entry has its own
+`data/<id>.json` of **daily** closes as parallel `dates` / `closes` arrays. The
+manifest is written by the fetcher, so an instrument that failed to download is
+simply absent rather than 404-ing at runtime.
+
+| Instrument | Source                                | Key                 |
+| ---------- | ------------------------------------- | ------------------- |
+| ^GSPC      | FRED `SP500` — real index levels      | free FRED key       |
+| SPY        | stockanalysis.com, or Alpha Vantage   | none, or free AV key|
+| VOO / IVV  | same                                  | same                |
+| QQQ        | same (Nasdaq 100, not the S&P)        | same                |
 
 Daily bars only. A monthly long history (Shiller, back to 1871) was tried and
 removed: averaging a month of closes hides exactly the intramonth collapses this
 tool exists to show — October 1987 flattens from −20% in a session to about −13%
-— and a chart mixing the two resolutions invites comparing a smoothed 1930s with
-a jagged 2020s.
+— and a chart mixing resolutions invites comparing a smoothed 1930s with a
+jagged 2020s.
 
-| Source                        | Instrument         | Key    |
-| ----------------------------- | ------------------ | ------ |
-| `api.stlouisfed.org` (FRED)   | ^GSPC index levels | free   |
-| `stockanalysis.com` `/s/`     | SPY ETF, ~10Y      | none   |
+### How far back
+
+Roughly ten years out of the box, because that is the ceiling of both key-less
+routes: FRED's `SP500` series is a rolling ten years, and stockanalysis silently
+caps at `10Y` (every longer range quietly returns one year — measured, not
+assumed).
+
+To reach back to the late 1990s, add a free [Alpha Vantage key][av] as the
+`ALPHAVANTAGE_API_KEY` secret. `outputsize=full` covers the ETFs from about 1999,
+so SPY/VOO/IVV/QQQ gain the dot-com bust and 2008. It does not carry the index
+itself, so ^GSPC stays on FRED's ten years.
+
+[av]: https://www.alphavantage.co/support/#api-key
+
+For real index levels rather than the SPY proxy, add a free [FRED key][fred] as
+`FRED_API_KEY`. Both go under **Settings → Secrets and variables → Actions**.
+
+[fred]: https://fredaccount.stlouisfed.org/apikeys
 
 Which sources answer a GitHub-hosted runner was measured, not assumed:
 `raw.githubusercontent.com` and `api.stlouisfed.org` answer; `stockanalysis.com`
-answers on `/s/` but 400s on `/i/` for every index symbol; `fred.stlouisfed.org/graph`
-times out; `stooq.com` returns an HTML robots page; `query{1,2}.finance.yahoo.com`
-429s across the whole runner IP range.
-
-With no key the script falls back to the SPY ETF — about a tenth of the index
-level — and the page labels itself as showing a proxy rather than silently
-mislabelling ETF prices as the index. To get real index levels,
-[get a free FRED API key][fred] and add it as a repository secret named
-`FRED_API_KEY` under **Settings → Secrets and variables → Actions**.
-
-[fred]: https://fredaccount.stlouisfed.org/apikeys
+answers on `/s/` but 400s on `/i/` for every index symbol;
+`fred.stlouisfed.org/graph` times out; `stooq.com` returns an HTML robots page;
+`query{1,2}.finance.yahoo.com` 429s across the whole runner IP range.
 
 ### Refresh
 
 1. **Daily.** `.github/workflows/update-data.yml` runs `scripts/fetch-sp500.mjs` at
-   23:10 UTC on weekdays and commits the file when it changes. It refuses to
-   overwrite a series with a shorter or older one from the same source, so a bad
-   upstream response fails the run instead of corrupting the data.
-2. **Live top-up (best effort).** On load the page fetches the latest quote and
-   appends today's bar. Those endpoints are key-less, so a browser may refuse them
-   on CORS grounds; the status pill shows `live · <source>` or `daily snapshot`. A
-   quote more than 30% away from the last close is rejected, so an index quote can
-   never be spliced onto an ETF series.
+   23:10 UTC on weekdays and commits whatever changed. Each instrument refuses to
+   overwrite itself with a shorter or older series from the same source, so a bad
+   upstream response fails that one instrument instead of corrupting it.
+2. **Live top-up (best effort).** On load the page appends today's bar from a
+   public quote endpoint. Those are key-less, so a browser may refuse them on CORS
+   grounds; the status pill shows `live · <source>` or `daily snapshot`. A quote
+   more than 30% away from the last close is rejected, so an index quote can never
+   be spliced onto an ETF series.
 
 ```sh
-node scripts/fetch-sp500.mjs                    # SPY, no key
-FRED_API_KEY=... node scripts/fetch-sp500.mjs   # ^GSPC index levels
+node scripts/fetch-sp500.mjs                      # ETFs only, ~10 years
+FRED_API_KEY=... node scripts/fetch-sp500.mjs     # + ^GSPC index levels
+ALPHAVANTAGE_API_KEY=... node scripts/fetch-sp500.mjs   # + ETFs back to ~1999
 ```
+
+## Instruments
+
+The picker in the command bar switches series. **Each instrument keeps its own
+book** — trades, day pointer and all — so comparing SPY against the index never
+mixes the two. Ladder base, language, log scale and alerts are shared.
+
+London-listed accumulating trackers such as CSPX are deliberately absent: the
+key-less endpoint only covers US listings, so they would 404.
 
 ## Language
 

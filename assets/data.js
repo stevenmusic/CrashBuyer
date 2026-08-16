@@ -9,7 +9,9 @@
 //      an API key, so a browser may refuse them on CORS grounds — that is not
 //      an error, it just leaves the page on the daily snapshot.
 
-const DATA_URL = new URL('../data/sp500-daily.json', import.meta.url);
+const DATA_DIR = new URL('../data/', import.meta.url);
+/** Pre-manifest layout, still read so the page works mid-deploy. */
+const LEGACY_URL = new URL('sp500-daily.json', DATA_DIR);
 const LIVE_TIMEOUT_MS = 6000;
 
 /**
@@ -25,22 +27,41 @@ const STALE_AFTER_MONTHLY = 70;
 /** Rolling window kept in memory, matching what scripts/fetch-sp500.mjs commits. */
 const WINDOW_YEARS = 10.6;
 
-export async function loadSeries() {
-  const res = await fetch(DATA_URL, { cache: 'no-cache' });
-  if (!res.ok) {
-    throw new Error(
-      res.status === 404
-        ? 'data/sp500-daily.json is missing — run the "Update S&P 500 data" workflow (or `node scripts/fetch-sp500.mjs`) to create it.'
-        : `Could not load price data (HTTP ${res.status}).`
-    );
+/**
+ * The list of instruments the page offers. Written by the fetcher, so anything
+ * that failed to download simply is not listed rather than 404-ing at runtime.
+ * Returns null on the pre-manifest layout.
+ */
+export async function loadManifest() {
+  try {
+    const res = await fetch(new URL('instruments.json', DATA_DIR), { cache: 'no-cache' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return Array.isArray(json?.instruments) && json.instruments.length ? json : null;
+  } catch {
+    return null;
   }
+}
 
-  const json = await res.json();
+function validate(json) {
   const { dates, closes } = json;
   if (!Array.isArray(dates) || !Array.isArray(closes) || dates.length !== closes.length || !dates.length) {
     throw new Error('Price data is malformed: expected matching non-empty `dates` and `closes` arrays.');
   }
   return json;
+}
+
+export async function loadSeries(id) {
+  const url = id ? new URL(`${id}.json`, DATA_DIR) : LEGACY_URL;
+  const res = await fetch(url, { cache: 'no-cache' });
+  if (!res.ok) {
+    throw new Error(
+      res.status === 404
+        ? 'Price data is missing — run the "Update S&P 500 data" workflow (or `node scripts/fetch-sp500.mjs`) to create it.'
+        : `Could not load price data (HTTP ${res.status}).`
+    );
+  }
+  return validate(await res.json());
 }
 
 /** Sorts, de-duplicates and trims to the rolling window. */

@@ -1,6 +1,6 @@
 // Wiring: load the series, hold the simulation state, render every panel.
 
-import { loadSeries, bootstrapSeries, refreshLive, isStale, daysSince } from './data.js';
+import { loadManifest, loadSeries, bootstrapSeries, refreshLive, isStale, daysSince } from './data.js';
 import {
   runningPeaks,
   drawdownEpisodes,
@@ -65,6 +65,7 @@ const dom = {
   dataMeta: el('data-meta'),
   resetAll: el('reset-all'),
   langSwitch: el('lang-switch'),
+  instrument: el('instrument'),
   toasts: el('toasts'),
 
   dayPrev: el('day-prev'),
@@ -140,6 +141,9 @@ let episodes = [];
 let chart = null;
 let nextSeq = 1;
 let bootstrapped = false;
+let manifest = null;
+/** Trades are kept per instrument, so switching symbol never mixes books. */
+let books = {};
 let lastLive = null;
 /** Deepest 10% band already announced, so each level alerts once per selloff. */
 let alertedLevel = 0;
@@ -147,6 +151,7 @@ let alertedLevel = 0;
 let lastMessage = null;
 
 const state = {
+  instrument: null,
   day: 1,
   // Only scales the allocation ladder's suggested amounts. Nothing the
   // portfolio reports depends on it — those come from the trades themselves.
@@ -163,16 +168,22 @@ function save() {
     localStorage.setItem(
       STORE_KEY,
       JSON.stringify({
-        day: state.day,
-        // The series is a rolling window, so old bars eventually drop off the
-        // front and day numbers shift. The date is the stable anchor.
-        dayDate: series.dates[state.day - 1],
+        instrument: state.instrument,
         ladderBase: state.ladderBase,
-        trades: state.trades,
         visible: state.visible,
         logScale: state.logScale,
         alerts: state.alerts,
         lang: getLang(),
+        books: {
+          ...books,
+          [state.instrument]: {
+            day: state.day,
+            // The series is a rolling window, so old bars drop off the front
+            // and day numbers shift. The date is the stable anchor.
+            dayDate: series.dates[state.day - 1],
+            trades: state.trades,
+          },
+        },
       })
     );
   } catch {
@@ -188,16 +199,34 @@ function readSaved() {
   }
 }
 
-function restore(saved) {
+/** Applies the settings shared by every instrument. */
+function restoreSettings(saved) {
   if (!saved) return;
 
   // `startingCash` is the pre-rename key from when this doubled as a budget.
   const base = saved.ladderBase ?? saved.startingCash;
   if (Number.isFinite(base) && base >= 0) state.ladderBase = base;
-  if (Array.isArray(saved.trades)) {
+  if (saved.visible) Object.assign(state.visible, saved.visible);
+  if (typeof saved.logScale === 'boolean') state.logScale = saved.logScale;
+  if (typeof saved.alerts === 'boolean') state.alerts = saved.alerts;
+
+  // Saves from before the picker kept a single book at the top level.
+  books = saved.books ?? {};
+  if (!saved.books && (saved.trades || saved.dayDate)) {
+    books = { __legacy: { day: saved.day, dayDate: saved.dayDate, trades: saved.trades } };
+  }
+}
+
+/** Loads one instrument's book against the series currently in memory. */
+function restoreBook(book) {
+  state.trades = [];
+  state.day = series.count;
+  if (!book) return;
+
+  if (Array.isArray(book.trades)) {
     // Re-anchor by date: the series grows daily, so a stored day number would
     // silently point at the wrong bar once new data lands.
-    state.trades = saved.trades
+    state.trades = book.trades
       .map((trade) => {
         const day = indexOnOrAfter(series.dates, trade.date) + 1;
         return day > 0 && series.dates[day - 1] === trade.date
@@ -206,12 +235,9 @@ function restore(saved) {
       })
       .filter(Boolean);
   }
-  if (saved.visible) Object.assign(state.visible, saved.visible);
-  if (typeof saved.logScale === 'boolean') state.logScale = saved.logScale;
-  if (typeof saved.alerts === 'boolean') state.alerts = saved.alerts;
 
-  const anchored = saved.dayDate ? indexOnOrAfter(series.dates, saved.dayDate) + 1 : 0;
-  state.day = clampDay(anchored > 0 ? anchored : (saved.day ?? series.count));
+  const anchored = book.dayDate ? indexOnOrAfter(series.dates, book.dayDate) + 1 : 0;
+  state.day = clampDay(anchored > 0 ? anchored : (book.day ?? series.count));
 }
 
 /* -------------------------------------------------------------- selectors */
@@ -834,6 +860,58 @@ function renderDataStatus() {
   }
 }
 
+/** Rebuilds every derived structure after a new series is loaded. */
+function adoptSeries() {
+  peaks = runningPeaks(series.closes);
+  episodes = drawdownEpisodes(series.closes, episodeThreshold());
+  alertedLevel = bandAt(market().drawdown);
+  applyInstrumentLabels();
+  buildPresets();
+}
+
+async function switchInstrument(id) {
+  if (id === state.instrument) return;
+  // Park the outgoing book before the series it is anchored to goes away.
+  books[state.instrument] = {
+    day: state.day,
+    dayDate: series.dates[state.day - 1],
+    trades: state.trades,
+  };
+
+  try {
+    series = await loadSeries(id);
+  } catch (error) {
+    dom.dataError.hidden = false;
+    dom.dataError.textContent = error.message;
+    dom.instrument.value = state.instrument;
+    return;
+  }
+
+  state.instrument = id;
+  adoptSeries();
+  restoreBook(books[id]);
+  message(null);
+  lastLive = null;
+  save();
+  render();
+  renderDataStatus();
+}
+
+function buildInstrumentPicker() {
+  if (!manifest) return;
+  dom.instrument.hidden = false;
+  dom.instrument.replaceChildren(
+    ...manifest.instruments.map((entry) => {
+      const option = document.createElement('option');
+      option.value = entry.id;
+      option.textContent = entry.name;
+      option.selected = entry.id === state.instrument;
+      return option;
+    })
+  );
+  dom.instrument.addEventListener('change', () => switchInstrument(dom.instrument.value));
+}
+
 async function main() {
   const saved = readSaved();
   setLang(LANGS.includes(saved?.lang) ? saved.lang : DEFAULT_LANG);
@@ -843,8 +921,15 @@ async function main() {
   applyStatic();
   dom.dataStatus.textContent = t('status.loading');
 
+  manifest = await loadManifest();
+  restoreSettings(saved);
+  state.instrument =
+    manifest?.instruments.some((i) => i.id === saved?.instrument) ? saved.instrument
+    : manifest ? manifest.default
+    : '__legacy';
+
   try {
-    series = await loadSeries();
+    series = await loadSeries(manifest ? state.instrument : null);
   } catch (error) {
     // No committed snapshot yet — try to pull the history in the browser so the
     // page is usable before the first CI refresh lands.
@@ -862,11 +947,8 @@ async function main() {
     dom.dataError.textContent = t('err.bootstrap');
   }
 
-  peaks = runningPeaks(series.closes);
-  episodes = drawdownEpisodes(series.closes, episodeThreshold());
-  state.day = series.count;
-
-  restore(saved);
+  adoptSeries();
+  restoreBook(books[state.instrument] ?? books.__legacy);
   dom.ladderBase.value = String(state.ladderBase);
   dom.alertsToggle.checked = state.alerts;
   dom.logToggle.setAttribute('aria-pressed', String(state.logScale));
@@ -875,14 +957,13 @@ async function main() {
   }
   alertedLevel = bandAt(market().drawdown);
 
-  applyInstrumentLabels();
+  buildInstrumentPicker();
   chart = createChart(dom.chart, dom.chartTip, {
     onScrub: (day) => setDay(day),
     onZoom: (zoomed) => {
       dom.zoomReset.hidden = !zoomed;
     },
   });
-  buildPresets();
   bindEvents();
   render();
   dom.layout.setAttribute('aria-busy', 'false');

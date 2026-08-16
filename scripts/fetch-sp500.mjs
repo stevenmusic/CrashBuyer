@@ -11,7 +11,25 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = resolve(ROOT, 'data/sp500-daily.json');
+const DATA_DIR = resolve(ROOT, 'data');
+
+/**
+ * Instruments offered in the picker. The index needs a free FRED key; the ETFs
+ * come from stockanalysis.com, which serves `/s/` (stocks and ETFs) without one
+ * but 400s on `/i/` for every index symbol.
+ *
+ * London-listed accumulating trackers such as CSPX are deliberately absent:
+ * that endpoint only covers US listings, so they would 404.
+ */
+const INSTRUMENTS = [
+  { id: 'sp500', symbol: '^GSPC', name: 'S&P 500', kind: 'index', proxy: false },
+  { id: 'spy', symbol: 'SPY', name: 'SPY · SPDR S&P 500', kind: 'etf', proxy: true },
+  { id: 'voo', symbol: 'VOO', name: 'VOO · Vanguard S&P 500', kind: 'etf', proxy: true },
+  { id: 'ivv', symbol: 'IVV', name: 'IVV · iShares Core S&P 500', kind: 'etf', proxy: true },
+  { id: 'qqq', symbol: 'QQQ', name: 'QQQ · Invesco Nasdaq 100', kind: 'etf', proxy: true },
+];
+
+const fileFor = (id) => resolve(DATA_DIR, `${id}.json`);
 
 // Which sources answer a GitHub-hosted runner was measured, not guessed:
 //
@@ -100,8 +118,34 @@ async function fromFred() {
  * bar first. `c` is the raw close; the dividend-adjusted `a` is deliberately
  * ignored so the series behaves like a price index.
  */
-async function fromStockAnalysis() {
-  const url = 'https://stockanalysis.com/api/symbol/s/spy/history?range=10Y&period=Day';
+/**
+ * Alpha Vantage, optional. `outputsize=full` reaches back to the late 1990s,
+ * which is the only key-less-or-cheap way found to get daily bars before ~2016:
+ * FRED's SP500 series is a rolling ten years and stockanalysis silently caps at
+ * 10Y (every longer range returns one year). Covers ETFs, not the index.
+ */
+async function fromAlphaVantage(symbol) {
+  const url =
+    'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&outputsize=full' +
+    `&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(process.env.ALPHAVANTAGE_API_KEY)}`;
+  const json = await (await get(url, 'application/json')).json();
+
+  // Free-tier throttling comes back as 200 with a prose "Note"/"Information".
+  const series = json?.['Time Series (Daily)'];
+  if (!series) {
+    throw new Error(String(json?.Note ?? json?.Information ?? json?.['Error Message'] ?? 'unexpected payload').slice(0, 90));
+  }
+
+  const rows = [];
+  for (const [date, bar] of Object.entries(series)) {
+    const close = Number(bar?.['4. close']);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(close) && close > 0) rows.push([date, close]);
+  }
+  return rows;
+}
+
+async function fromStockAnalysis(symbol) {
+  const url = `https://stockanalysis.com/api/symbol/s/${symbol.toLowerCase()}/history?range=10Y&period=Day`;
   const json = await (await get(url, 'application/json')).json();
   if (!Array.isArray(json?.data)) throw new Error(`unexpected payload: ${JSON.stringify(json).slice(0, 80)}`);
 
@@ -184,14 +228,20 @@ async function assertNotWorseThanCommitted(next) {
   }
 }
 
-async function write(payload, label) {
-  await assertNotWorseThanCommitted(payload);
-  await mkdir(dirname(OUT), { recursive: true });
-  await writeFile(OUT, JSON.stringify(payload) + '\n');
-  console.log(
-    `[fetch-sp500] wrote ${payload.count} bars (${label}): ` +
-      `${payload.start} → ${payload.end}, last close ${payload.closes.at(-1)}`
-  );
+async function assertNotWorse(file, next) {
+  let prev;
+  try {
+    prev = JSON.parse(await readFile(file, 'utf8'));
+  } catch {
+    return; // Nothing committed yet.
+  }
+  if (prev.source !== next.source || prev.symbol !== next.symbol) return;
+  if (next.count < prev.count * 0.9) {
+    throw new Error(`refusing to shrink: ${prev.count} committed vs ${next.count} fetched`);
+  }
+  if (next.end < prev.end) {
+    throw new Error(`refusing to go backwards: committed ends ${prev.end}, fetched ends ${next.end}`);
+  }
 }
 
 const pack = (rows, extra) => ({
@@ -200,78 +250,79 @@ const pack = (rows, extra) => ({
   start: rows[0][0],
   end: rows.at(-1)[0],
   count: rows.length,
+  dailyFrom: rows[0][0],
   dates: rows.map((r) => r[0]),
   closes: rows.map((r) => Math.round(r[1] * 100) / 100),
 });
 
+/** Fetches one instrument, or returns null with a reason if it cannot be had. */
+async function fetchInstrument(instrument) {
+  if (instrument.kind === 'index') {
+    if (!process.env.FRED_API_KEY) return { skipped: 'no FRED_API_KEY' };
+    const rows = normalise(await fromFred());
+    if (rows.length < 500) throw new Error(`only ${rows.length} rows`);
+    return { payload: pack(rows, { ...instrument, source: 'fred' }) };
+  }
+  // Alpha Vantage first when configured: same instrument, decades more history.
+  if (process.env.ALPHAVANTAGE_API_KEY) {
+    try {
+      const rows = normalise(await fromAlphaVantage(instrument.symbol));
+      if (rows.length >= 500) return { payload: pack(rows, { ...instrument, source: 'alphavantage' }) };
+      console.warn(`[fetch] ${instrument.id} alphavantage returned ${rows.length} rows, falling back`);
+    } catch (err) {
+      console.warn(`[fetch] ${instrument.id} alphavantage failed — ${err.message}, falling back`);
+    }
+  }
+
+  const rows = normalise(await fromStockAnalysis(instrument.symbol));
+  if (rows.length < 500) throw new Error(`only ${rows.length} rows`);
+  return { payload: pack(rows, { ...instrument, source: 'stockanalysis' }) };
+}
+
 async function main() {
+  await mkdir(DATA_DIR, { recursive: true });
+  const available = [];
   const failures = [];
-  const note = (name, err) => {
-    failures.push(`${name}: ${err.message}`);
-    console.warn(`[fetch-sp500] ${name} failed — ${err.message}`);
-  };
 
-  // Daily resolution is the priority: it is what makes a crash legible, and
-  // both daily sources are reachable from CI without any external service.
-  // FRED gives real index levels but needs a free key; stockanalysis needs no
-  // key but quotes the SPY ETF, roughly a tenth of the index level.
-  let daily = [];
-  if (process.env.FRED_API_KEY) {
+  for (const instrument of INSTRUMENTS) {
     try {
-      daily = normalise(await fromFred());
-      console.log(`[fetch-sp500] fred: ${daily.length} daily bars from ${daily[0][0]}`);
-    } catch (err) {
-      note('fred', err);
-    }
-  } else {
-    console.log('[fetch-sp500] fred skipped — no FRED_API_KEY');
-  }
-
-  if (daily.length >= 500) {
-    await write(
-      pack(daily, {
-        symbol: '^GSPC',
-        name: 'S&P 500',
-        proxy: false,
-        source: 'fred',
-        dailyFrom: daily[0][0],
-      }),
-      'daily'
-    );
-    return;
-  }
-
-  // No key: the ETF still gives ten years of genuine daily bars.
-  try {
-    const rows = normalise(await fromStockAnalysis());
-    if (rows.length >= 500) {
-      await write(
-        pack(rows, { ...META.stockanalysis, source: 'stockanalysis', dailyFrom: rows[0][0] }),
-        'daily (ETF proxy)'
+      const { payload, skipped } = await fetchInstrument(instrument);
+      if (skipped) {
+        console.log(`[fetch] ${instrument.id.padEnd(6)} skipped — ${skipped}`);
+        continue;
+      }
+      const file = fileFor(instrument.id);
+      await assertNotWorse(file, payload);
+      await writeFile(file, JSON.stringify(payload) + '\n');
+      available.push({
+        id: instrument.id,
+        symbol: instrument.symbol,
+        name: instrument.name,
+        proxy: instrument.proxy,
+        start: payload.start,
+        end: payload.end,
+        count: payload.count,
+      });
+      console.log(
+        `[fetch] ${instrument.id.padEnd(6)} ${payload.count} bars ${payload.start} → ${payload.end}` +
+          ` (last ${payload.closes.at(-1)})`
       );
-      return;
-    }
-    failures.push(`stockanalysis: only ${rows.length} rows`);
-  } catch (err) {
-    note('stockanalysis', err);
-  }
-
-  for (const source of [{ name: 'stooq', fetch: fromStooq }, { name: 'yahoo', fetch: fromYahoo }]) {
-    try {
-      const rows = normalise(await source.fetch());
-      if (rows.length < 500) continue;
-      await write(
-        pack(rows, { ...META[source.name], source: source.name, dailyFrom: rows[0][0] }),
-        source.name
-      );
-      return;
     } catch (err) {
-      note(source.name, err);
+      failures.push(`${instrument.id}: ${err.message}`);
+      console.warn(`[fetch] ${instrument.id.padEnd(6)} failed — ${err.message}`);
     }
   }
 
-  console.error('[fetch-sp500] every source failed:\n  ' + failures.join('\n  '));
-  process.exit(1);
+  if (!available.length) {
+    console.error('[fetch] every instrument failed:\n  ' + failures.join('\n  '));
+    process.exit(1);
+  }
+
+  // The manifest is what the page reads to build its picker, so an instrument
+  // that failed today simply does not appear rather than 404-ing at runtime.
+  const manifest = { updatedAt: new Date().toISOString(), default: available[0].id, instruments: available };
+  await writeFile(resolve(DATA_DIR, 'instruments.json'), JSON.stringify(manifest, null, 2) + '\n');
+  console.log(`[fetch] manifest: ${available.map((a) => a.id).join(', ')} (default ${manifest.default})`);
 }
 
 main();

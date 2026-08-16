@@ -1316,3 +1316,40 @@ main {
   border-color: var(--accent-dim);
   color: var(--accent-deep);
 }
+
+/* Instrument picker sits where the static ticker label used to be. */
+
+.ticker-select {
+  height: 26px;
+  padding: 0 24px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--accent-deep);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-faint) 50%),
+    linear-gradient(135deg, var(--ink-faint) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 11px, calc(100% - 9px) 11px;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+
+.ticker-select:hover {
+  border-color: var(--accent-dim);
+}
+
+.ticker-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-wash);
+  outline: none;
+}
+
+/* When the picker is live the plain label is redundant. */
+.ticker-select:not([hidden]) + .brand-sub {
+  display: none;
+}

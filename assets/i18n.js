@@ -43,6 +43,7 @@ const STRINGS = {
     'panel.tradeInput': 'Trade Input',
     'panel.log': 'Transaction Log',
 
+    'mkt.instrument': 'Instrument',
     'mkt.dayPointer': 'Day Pointer',
     'mkt.currentDate': 'Current Date',
     'mkt.currentPrice': 'Current Price',
@@ -211,6 +212,7 @@ const STRINGS = {
     'panel.tradeInput': '交易輸入',
     'panel.log': '交易紀錄',
 
+    'mkt.instrument': '標的',
     'mkt.dayPointer': '日期指標',
     'mkt.currentDate': '當前日期',
     'mkt.currentPrice': '當前價格',

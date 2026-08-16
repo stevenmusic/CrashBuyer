@@ -30,6 +30,8 @@ jobs:
         # no key but quotes ~1/10 of the index level.
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          # Optional: unlocks daily bars back to the late 1990s for the ETFs.
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
         run: node scripts/fetch-sp500.mjs
 
       - name: Commit if the series changed
@@ -38,10 +40,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Stage first: `git diff` alone cannot see the file on the very first
           # run, when it is still untracked.
-          git add data/sp500-daily.json
+          git add data
           if git diff --cached --quiet; then
             echo "No new data."
             exit 0
           fi
-          git commit -m "data: refresh daily closes through $(node -p "require('./data/sp500-daily.json').end")"
+          git commit -m "data: refresh daily closes through $(node -p "require('./data/instruments.json').instruments[0].end")"
           git push origin HEAD:${GITHUB_REF_NAME}

@@ -19,7 +19,10 @@
     <header class="cmd">
       <span class="cmd-mark">CB</span>
       <h1 data-i18n="app.brand">Crash Buying Simulator</h1>
-      <span class="cmd-ticker"><b class="brand-sub">S&amp;P 500</b></span>
+      <label class="cmd-ticker">
+        <select id="instrument" class="ticker-select" data-i18n-aria="mkt.instrument" hidden></select>
+        <b class="brand-sub">S&amp;P 500</b>
+      </label>
 
       <div class="cmd-right">
         <span id="data-status" class="data-status" data-state="loading">loading data…</span>
