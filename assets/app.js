@@ -40,8 +40,10 @@ const PRESETS = [
   { key: 'preset.1987', date: '1987-08-01' },
   { key: 'preset.2000', date: '2000-08-01' },
   { key: 'preset.2008', date: '2007-10-01' },
-  { key: 'preset.2020', date: '2020-02-01' },
-  { key: 'preset.2022', date: '2022-01-01' },
+  { key: 'preset.2018', date: '2018-09-20' },
+  { key: 'preset.2020', date: '2020-02-19' },
+  { key: 'preset.2022', date: '2022-01-03' },
+  { key: 'preset.2025', date: '2025-02-19' },
   { key: 'preset.latest', tone: 'neutral', at: 'last' },
 ];
 
