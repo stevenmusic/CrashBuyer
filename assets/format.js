@@ -1,13 +1,27 @@
 // Shared number/date formatting. Every figure in the UI goes through here so
 // the same quantity never renders two different ways in two panels.
 
+import { getLang } from './i18n.js';
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** "2026-08-13" -> "13 Aug 2026". Parsed by parts to stay timezone-proof. */
+/**
+ * "2026-08-13" -> "13 Aug 2026" / "2026年8月13日". Parsed by parts rather than
+ * through Date so it cannot drift by a day in a western timezone.
+ */
 export function formatDate(iso) {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
+  if (getLang() === 'zh') return `${y}年${Number(m)}月${Number(d)}日`;
   return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`;
+}
+
+/** Month precision, for bars that represent a whole month. */
+export function formatMonth(iso) {
+  if (!iso) return '—';
+  const [y, m] = iso.split('-');
+  if (getLang() === 'zh') return `${y}年${Number(m)}月`;
+  return `${MONTHS[Number(m) - 1]} ${y}`;
 }
 
 /** Whole dollars, e.g. $623,523 — used for balances and equity. */

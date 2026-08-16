@@ -12,11 +12,6 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, 'data/sp500-daily.json');
 
-// Only keep this much history. The reference simulator runs ~10.5 years, which
-// is long enough to contain 2018, 2020, 2022 and 2025 without making the day
-// pointer unwieldy.
-const YEARS = 10.6;
-
 // Which sources answer a GitHub-hosted runner was measured, not guessed:
 //
 //   api.stlouisfed.org      200 with a key   <- true S&P 500 index levels
@@ -30,15 +25,15 @@ const YEARS = 10.6;
 // and every number this simulator shows except the raw price level is a
 // percentage, so the ladder and returns behave the same. The payload records
 // which one was used so the UI can label a proxy honestly.
-const sources = [
-  { name: 'fred', fetch: fromFred, skip: () => !process.env.FRED_API_KEY },
+// Fallbacks used only when the index series above cannot be built at all. SPY
+// quotes roughly a tenth of the index level, so it is flagged as a proxy.
+const FALLBACKS = [
   { name: 'stockanalysis', fetch: fromStockAnalysis },
   { name: 'stooq', fetch: fromStooq },
   { name: 'yahoo', fetch: fromYahoo },
 ];
 
 const META = {
-  fred: { symbol: '^GSPC', name: 'S&P 500', proxy: false },
   stockanalysis: { symbol: 'SPY', name: 'S&P 500 · SPY ETF', proxy: true },
   stooq: { symbol: '^GSPC', name: 'S&P 500', proxy: false },
   yahoo: { symbol: '^GSPC', name: 'S&P 500', proxy: false },
@@ -73,9 +68,41 @@ async function get(url, accept, attempts = 3) {
 }
 
 /**
- * FRED's official API — real S&P 500 index closes. Its SP500 series only goes
- * back 10 years, which is the window this simulator wants anyway. Holidays come
- * through as "." and are dropped.
+ * Robert Shiller's long series (via the `datasets/s-and-p-500` mirror): real
+ * S&P 500 index levels every month from January 1871, kept current.
+ *
+ * Caveat worth knowing: each value is the *monthly average* of daily closes,
+ * not a month-end close, so intramonth crashes are smoothed — October 1987
+ * averages out to about −13% rather than the −20% of Black Monday itself. It is
+ * still the canonical long history, and the daily FRED segment takes over for
+ * the recent decade whenever a key is configured.
+ */
+async function fromShiller() {
+  const res = await get(
+    'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv',
+    'text/csv'
+  );
+  const lines = (await res.text()).trim().split('\n');
+  const head = lines[0].split(',').map((h) => h.trim());
+  const iDate = head.indexOf('Date');
+  const iClose = head.indexOf('SP500');
+  if (iDate < 0 || iClose < 0) throw new Error(`unexpected CSV header: ${lines[0].slice(0, 60)}`);
+
+  const rows = [];
+  for (const line of lines.slice(1)) {
+    const cells = line.split(',');
+    const close = Number(cells[iClose]);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cells[iDate]) && Number.isFinite(close) && close > 0) {
+      rows.push([cells[iDate], close]);
+    }
+  }
+  return rows;
+}
+
+/**
+ * FRED's official API — real daily S&P 500 index closes. The SP500 series only
+ * covers the last 10 years, which is exactly the window it is used for here.
+ * Holidays come through as "." and are dropped.
  */
 async function fromFred() {
   const start = new Date();
@@ -160,19 +187,22 @@ async function fromYahoo() {
   return rows;
 }
 
-// Sorts, de-duplicates by date and trims to the retention window.
+/** Sorts and de-duplicates by date. All available history is kept. */
 function normalise(rows) {
   const byDate = new Map();
   for (const [date, close] of rows) byDate.set(date, close);
+  return [...byDate.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+}
 
-  const sorted = [...byDate.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
-  // UTC throughout, so the window does not shift with the runner's timezone.
-  const cutoff = new Date(`${sorted.at(-1)[0]}T00:00:00Z`);
-  cutoff.setUTCFullYear(cutoff.getUTCFullYear() - Math.floor(YEARS));
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - Math.round((YEARS % 1) * 12));
-  const from = cutoff.toISOString().slice(0, 10);
-
-  return sorted.filter(([date]) => date >= from);
+/**
+ * Splices the monthly history onto the daily one: monthly bars up to the day
+ * the daily series begins, then daily from there. Both are real index levels,
+ * so they join without any rescaling.
+ */
+function splice(monthly, daily) {
+  if (!daily.length) return { rows: monthly, dailyFrom: null };
+  const from = daily[0][0];
+  return { rows: [...monthly.filter(([date]) => date < from), ...daily], dailyFrom: from };
 }
 
 // Guards against a source that answers 200 with a truncated or stale series —
@@ -185,6 +215,9 @@ async function assertNotWorseThanCommitted(next) {
     return; // No committed data yet (or it is unreadable): nothing to compare.
   }
   if (prev.seed) return;
+  // A deliberate change of source or instrument legitimately reshapes the
+  // series, so only guard against regressions within the same source.
+  if (prev.source !== next.source || prev.symbol !== next.symbol) return;
   if (next.count < prev.count * 0.9) {
     throw new Error(`refusing to shrink series: ${prev.count} committed vs ${next.count} fetched`);
   }
@@ -193,14 +226,73 @@ async function assertNotWorseThanCommitted(next) {
   }
 }
 
+async function write(payload, label) {
+  await assertNotWorseThanCommitted(payload);
+  await mkdir(dirname(OUT), { recursive: true });
+  await writeFile(OUT, JSON.stringify(payload) + '\n');
+  console.log(
+    `[fetch-sp500] wrote ${payload.count} bars (${label}): ` +
+      `${payload.start} → ${payload.end}, last close ${payload.closes.at(-1)}`
+  );
+}
+
+const pack = (rows, extra) => ({
+  ...extra,
+  updatedAt: new Date().toISOString(),
+  start: rows[0][0],
+  end: rows.at(-1)[0],
+  count: rows.length,
+  dates: rows.map((r) => r[0]),
+  closes: rows.map((r) => Math.round(r[1] * 100) / 100),
+});
+
 async function main() {
   const failures = [];
-  for (const source of sources) {
-    if (source.skip?.()) {
-      console.log(`[fetch-sp500] ${source.name} skipped — no API key configured`);
-      continue;
-    }
 
+  // Preferred path: the full index history, monthly since 1871, with a daily
+  // tail for the last decade when a FRED key is available.
+  let monthly = [];
+  try {
+    monthly = normalise(await fromShiller());
+    console.log(`[fetch-sp500] shiller: ${monthly.length} monthly bars from ${monthly[0][0]}`);
+  } catch (err) {
+    failures.push(`shiller: ${err.message}`);
+    console.warn(`[fetch-sp500] shiller failed — ${err.message}`);
+  }
+
+  let daily = [];
+  if (process.env.FRED_API_KEY) {
+    try {
+      daily = normalise(await fromFred());
+      console.log(`[fetch-sp500] fred: ${daily.length} daily bars from ${daily[0][0]}`);
+    } catch (err) {
+      failures.push(`fred: ${err.message}`);
+      console.warn(`[fetch-sp500] fred failed — ${err.message}`);
+    }
+  } else {
+    console.log('[fetch-sp500] fred skipped — no FRED_API_KEY, monthly resolution only');
+  }
+
+  if (monthly.length >= 500) {
+    const { rows, dailyFrom } = splice(monthly, daily);
+    await write(
+      pack(rows, {
+        symbol: '^GSPC',
+        name: 'S&P 500',
+        proxy: false,
+        source: dailyFrom ? 'shiller + fred' : 'shiller',
+        // Bars before this date are monthly averages of daily closes, so the
+        // UI can say so rather than implying uniform daily resolution.
+        dailyFrom,
+        monthlyNote: true,
+      }),
+      dailyFrom ? `monthly to ${dailyFrom}, daily after` : 'monthly'
+    );
+    return;
+  }
+
+  // Nothing long-history available — fall back to whatever recent series works.
+  for (const source of FALLBACKS) {
     let rows;
     try {
       rows = normalise(await source.fetch());
@@ -209,30 +301,13 @@ async function main() {
       console.warn(`[fetch-sp500] ${source.name} failed — ${err.message}`);
       continue;
     }
-
     if (rows.length < 500) {
       failures.push(`${source.name}: only ${rows.length} rows`);
-      console.warn(`[fetch-sp500] ${source.name} returned only ${rows.length} rows, skipping`);
       continue;
     }
-
-    const payload = {
-      ...META[source.name],
-      source: source.name,
-      updatedAt: new Date().toISOString(),
-      start: rows[0][0],
-      end: rows.at(-1)[0],
-      count: rows.length,
-      dates: rows.map((r) => r[0]),
-      closes: rows.map((r) => Math.round(r[1] * 100) / 100),
-    };
-
-    await assertNotWorseThanCommitted(payload);
-    await mkdir(dirname(OUT), { recursive: true });
-    await writeFile(OUT, JSON.stringify(payload) + '\n');
-    console.log(
-      `[fetch-sp500] wrote ${payload.count} rows from ${source.name}: ` +
-        `${payload.start} → ${payload.end} (last close ${payload.closes.at(-1)})`
+    await write(
+      pack(rows, { ...META[source.name], source: source.name, dailyFrom: rows[0][0] }),
+      source.name
     );
     return;
   }

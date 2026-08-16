@@ -102,12 +102,14 @@ export function buildLedger(trades, startingCash) {
     cash += signedAmount;
     held += signedUnits;
 
-    // Tolerate float dust before calling a sequence impossible.
+    // Tolerate float dust before calling a sequence impossible. The error is
+    // structured rather than a sentence so the UI can render it in either
+    // language.
     if (cash < -0.005 && !error) {
-      error = `Trade on day ${trade.day} would overdraw cash by ${Math.abs(cash).toFixed(2)}.`;
+      error = { kind: 'overdraw', day: trade.day, shortfall: Math.abs(cash) };
     }
     if (held < -1e-9 && !error) {
-      error = `Trade on day ${trade.day} would sell more units than are held.`;
+      error = { kind: 'oversell', day: trade.day };
     }
 
     rows.push({

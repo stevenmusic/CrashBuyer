@@ -11,20 +11,47 @@ import {
   METER_FLOOR,
 } from './model.js';
 import { createChart } from './chart.js';
-import { formatDate, money, moneySigned, percent, percentSigned, price as fmtPrice, units as fmtUnits } from './format.js';
+import { t, setLang, getLang, applyStatic, LANGS, DEFAULT_LANG } from './i18n.js';
+import {
+  formatDate,
+  money,
+  moneySigned,
+  percent,
+  percentSigned,
+  price as fmtPrice,
+  units as fmtUnits,
+} from './format.js';
 
 const STORE_KEY = 'crashbuyer.v1';
 const DEFAULT_CASH = 200000;
 
-/** Jump targets, anchored on the market peak that preceded each selloff. */
+/** Every 10% of drawdown raises an alert, if alerts are switched on. */
+const ALERT_STEP = 10;
+
+/**
+ * Jump targets, anchored on the market peak that preceded each selloff. Any
+ * whose date falls outside the loaded series is dropped at build time, so the
+ * same list works for a 10-year window and for the full history since 1871.
+ */
 const PRESETS = [
-  { label: 'START', tone: 'neutral', at: 'first' },
-  { label: '2018 Trade War', date: '2018-09-20' },
-  { label: '2020 Covid', date: '2020-02-19' },
-  { label: '2022 Inflation', date: '2022-01-03' },
-  { label: '2025 Liberation Day', date: '2025-02-19' },
-  { label: 'Latest', tone: 'neutral', at: 'last' },
+  { key: 'preset.start', tone: 'neutral', at: 'first' },
+  { key: 'preset.1929', date: '1929-09-01' },
+  { key: 'preset.1987', date: '1987-08-01' },
+  { key: 'preset.2000', date: '2000-08-01' },
+  { key: 'preset.2008', date: '2007-10-01' },
+  { key: 'preset.2020', date: '2020-02-01' },
+  { key: 'preset.2022', date: '2022-01-01' },
+  { key: 'preset.latest', tone: 'neutral', at: 'last' },
 ];
+
+/**
+ * Shading every 10% dip over 150 years would tint most of the chart, so a long
+ * series only highlights the serious bear markets.
+ */
+function episodeThreshold() {
+  const years = (Date.parse(series.end) - Date.parse(series.start)) / 3.15576e10;
+  return years > 40 ? 0.2 : 0.1;
+}
 
 const el = (id) => document.getElementById(id);
 
@@ -34,6 +61,8 @@ const dom = {
   dataError: el('data-error'),
   dataMeta: el('data-meta'),
   resetAll: el('reset-all'),
+  langSwitch: el('lang-switch'),
+  toasts: el('toasts'),
 
   dayPrev: el('day-prev'),
   dayNext: el('day-next'),
@@ -45,6 +74,8 @@ const dom = {
   curPeak: el('cur-peak'),
   meterMarker: el('meter-marker'),
   presets: el('presets'),
+  alertsToggle: el('alerts-toggle'),
+  alertsHint: el('alerts-hint'),
 
   startingCash: el('starting-cash'),
   pfCash: el('pf-cash'),
@@ -57,9 +88,11 @@ const dom = {
 
   allocBody: el('alloc-body'),
 
+  chartTitle: el('chart-title'),
   chart: el('chart'),
   chartTip: el('chart-tip'),
   legend: el('chart-legend'),
+  logToggle: el('log-toggle'),
 
   actBuy: el('act-buy'),
   actSell: el('act-sell'),
@@ -81,6 +114,12 @@ let peaks = [];
 let episodes = [];
 let chart = null;
 let nextSeq = 1;
+let bootstrapped = false;
+let lastLive = null;
+/** Deepest 10% band already announced, so each level alerts once per selloff. */
+let alertedLevel = 0;
+/** The last message shown, kept as a key so it can be re-rendered on language change. */
+let lastMessage = null;
 
 const state = {
   day: 1,
@@ -88,6 +127,8 @@ const state = {
   action: 'BUY',
   trades: [],
   visible: { price: true, peak: true, buy: true, sell: true },
+  logScale: true,
+  alerts: false,
 };
 
 function save() {
@@ -102,6 +143,9 @@ function save() {
         startingCash: state.startingCash,
         trades: state.trades,
         visible: state.visible,
+        logScale: state.logScale,
+        alerts: state.alerts,
+        lang: getLang(),
       })
     );
   } catch {
@@ -109,13 +153,15 @@ function save() {
   }
 }
 
-function restore() {
-  let saved;
+function readSaved() {
   try {
-    saved = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null');
+    return JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null');
   } catch {
-    return;
+    return null;
   }
+}
+
+function restore(saved) {
   if (!saved) return;
 
   if (Number.isFinite(saved.startingCash) && saved.startingCash >= 0) {
@@ -125,16 +171,20 @@ function restore() {
     // Re-anchor by date: the series grows daily, so a stored day number would
     // silently point at the wrong bar once new data lands.
     state.trades = saved.trades
-      .map((t) => {
-        const day = indexOnOrAfter(series.dates, t.date) + 1;
-        return day > 0 && series.dates[day - 1] === t.date ? { ...t, day, seq: nextSeq++ } : null;
+      .map((trade) => {
+        const day = indexOnOrAfter(series.dates, trade.date) + 1;
+        return day > 0 && series.dates[day - 1] === trade.date
+          ? { ...trade, day, seq: nextSeq++ }
+          : null;
       })
       .filter(Boolean);
   }
   if (saved.visible) Object.assign(state.visible, saved.visible);
+  if (typeof saved.logScale === 'boolean') state.logScale = saved.logScale;
+  if (typeof saved.alerts === 'boolean') state.alerts = saved.alerts;
 
   const anchored = saved.dayDate ? indexOnOrAfter(series.dates, saved.dayDate) + 1 : 0;
-  state.day = clampDay(anchored > 0 ? anchored : saved.day ?? series.count);
+  state.day = clampDay(anchored > 0 ? anchored : (saved.day ?? series.count));
 }
 
 /* -------------------------------------------------------------- selectors */
@@ -148,8 +198,70 @@ function market() {
   return { i, date: series.dates[i], currentPrice, peak, drawdown: currentPrice / peak - 1 };
 }
 
-function ledger() {
-  return buildLedger(state.trades, state.startingCash);
+const ledger = () => buildLedger(state.trades, state.startingCash);
+
+/** Renders a structured ledger error in the active language. */
+function describeError(error) {
+  if (!error) return '';
+  return error.kind === 'overdraw'
+    ? t('msg.overdraw', error.day, error.shortfall.toFixed(2))
+    : t('msg.oversell', error.day);
+}
+
+/* ---------------------------------------------------------------- alerts */
+
+function toast(text) {
+  const node = document.createElement('div');
+  node.className = 'toast';
+  node.textContent = text;
+  dom.toasts.appendChild(node);
+  setTimeout(() => node.remove(), 7000);
+}
+
+/**
+ * Announces each new 10% band the drawdown falls through, once per selloff.
+ * Recovering to a fresh high rearms the whole ladder.
+ */
+function checkAlerts(snapshot) {
+  const depth = Math.max(0, -snapshot.drawdown) * 100;
+  const level = Math.floor(depth / ALERT_STEP) * ALERT_STEP;
+
+  if (level <= 0) {
+    alertedLevel = 0;
+    return;
+  }
+  if (!state.alerts || level <= alertedLevel) {
+    alertedLevel = Math.max(alertedLevel, level);
+    return;
+  }
+
+  alertedLevel = level;
+  const body = t('alert.body', level, formatDate(snapshot.date), fmtPrice(snapshot.currentPrice));
+  toast(body);
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    try {
+      new Notification(t('alert.title'), { body, tag: `dd-${level}` });
+    } catch {
+      // Some browsers refuse constructed notifications outside a service worker.
+    }
+  }
+}
+
+async function setAlerts(on) {
+  state.alerts = on;
+  dom.alertsHint.hidden = true;
+
+  if (on && typeof Notification !== 'undefined') {
+    let permission = Notification.permission;
+    if (permission === 'default') permission = await Notification.requestPermission();
+    dom.alertsHint.hidden = false;
+    dom.alertsHint.textContent =
+      permission === 'granted' ? t('alerts.enabled') : t('alerts.blocked');
+  }
+
+  // Re-arm from the current position so switching on does not replay old bands.
+  alertedLevel = Math.floor(Math.max(0, -market().drawdown) * 100 / ALERT_STEP) * ALERT_STEP;
+  save();
 }
 
 /* ---------------------------------------------------------------- actions */
@@ -158,6 +270,7 @@ function setDay(day, { persist = true } = {}) {
   const next = clampDay(day);
   if (next === state.day) return;
   state.day = next;
+  checkAlerts(market());
   if (persist) save();
   render();
 }
@@ -171,7 +284,16 @@ function setAction(action) {
   render();
 }
 
-function message(text, tone = 'error') {
+/** Messages are stored as (key, args) so they survive a language switch. */
+function message(key, tone = 'error', ...args) {
+  lastMessage = key ? { key, tone, args } : null;
+  dom.tradeMsg.textContent = key ? t(key, ...args) : '';
+  dom.tradeMsg.dataset.tone = tone;
+  dom.tradeMsg.hidden = !key;
+}
+
+function messageRaw(text, tone) {
+  lastMessage = null;
   dom.tradeMsg.textContent = text;
   dom.tradeMsg.dataset.tone = tone;
   dom.tradeMsg.hidden = !text;
@@ -198,13 +320,13 @@ function draftTrade() {
 function execute() {
   const draft = draftTrade();
   if (!draft) {
-    message('Enter an amount greater than zero.');
+    message('msg.enterAmount');
     return;
   }
 
   const candidate = buildLedger([...state.trades, draft], state.startingCash);
   if (candidate.error) {
-    message(candidate.error);
+    messageRaw(describeError(candidate.error), 'error');
     return;
   }
 
@@ -212,8 +334,12 @@ function execute() {
   state.trades.push(draft);
   dom.amountInput.value = '0';
   message(
-    `${draft.action} ${fmtUnits(draft.units)} units at ${fmtPrice(draft.price)} on ${formatDate(draft.date)}.`,
-    'ok'
+    'msg.executed',
+    'ok',
+    t(draft.action === 'BUY' ? 'trade.buy' : 'trade.sell'),
+    fmtUnits(draft.units),
+    fmtPrice(draft.price),
+    formatDate(draft.date)
   );
   save();
   render();
@@ -221,27 +347,27 @@ function execute() {
 
 function suggest() {
   const { currentPrice, peak, drawdown } = market();
-  const rows = ledger().rows;
+  const { rows } = ledger();
   const pf = portfolioAt(rows, state.startingCash, state.day, currentPrice);
 
   if (state.action === 'SELL') {
     if (pf.units <= 0) {
-      message('No units held at this date to sell.');
+      message('msg.noUnits');
       return;
     }
     dom.amountInput.value = (Math.floor(pf.marketValue * 100) / 100).toFixed(2);
-    message(`Suggested: sell the full position (${fmtUnits(pf.units)} units).`, 'ok');
+    message('msg.suggestSell', 'ok', fmtUnits(pf.units));
     render();
     return;
   }
 
   const armed = allocationRows(peak, state.startingCash, drawdown).filter((r) => r.armed);
   if (!armed.length) {
-    message(`No allocation rung is armed at ${percent(drawdown)} — the first rung triggers at −10%.`);
+    message('msg.noRung', 'error', percent(drawdown));
     return;
   }
   if (pf.cash <= 0) {
-    message('No cash left to deploy at this date.');
+    message('msg.noCash');
     return;
   }
 
@@ -249,29 +375,44 @@ function suggest() {
   const amount = Math.min(deepest.amount, pf.cash);
   dom.amountInput.value = String(Math.round(amount));
   message(
-    `Suggested: the −${(deepest.drawdown * 100).toFixed(0)}% rung — ${(deepest.invest * 100).toFixed(0)}% of starting cash${
-      amount < deepest.amount ? ', capped by remaining cash' : ''
-    }.`,
-    'ok'
+    'msg.suggestBuy',
+    'ok',
+    (deepest.drawdown * 100).toFixed(0),
+    (deepest.invest * 100).toFixed(0),
+    amount < deepest.amount
   );
   render();
 }
 
 function removeTrade(id) {
-  state.trades = state.trades.filter((t) => t.id !== id);
-  message('');
+  state.trades = state.trades.filter((trade) => trade.id !== id);
+  message(null);
   save();
   render();
 }
 
 function resetAll() {
-  if (!confirm('Clear all trades and restore the default starting cash?')) return;
+  if (!confirm(t('confirm.reset'))) return;
   state.trades = [];
   state.startingCash = DEFAULT_CASH;
   state.day = series.count;
   dom.startingCash.value = String(DEFAULT_CASH);
   dom.amountInput.value = '0';
-  message('');
+  message(null);
+  save();
+  render();
+}
+
+function switchLang(lang) {
+  setLang(lang);
+  for (const button of dom.langSwitch.children) {
+    button.setAttribute('aria-pressed', String(button.dataset.lang === lang));
+  }
+  applyStatic();
+  applyInstrumentLabels();
+  buildPresets();
+  if (lastMessage) message(lastMessage.key, lastMessage.tone, ...lastMessage.args);
+  renderDataStatus();
   save();
   render();
 }
@@ -311,11 +452,7 @@ function renderPortfolio(pf) {
   dom.pfRet.className = `kv-value ${pf.returnPct >= 0 ? 'is-gain' : 'is-loss'}`;
 
   dom.pfPending.hidden = pf.pending === 0;
-  dom.pfPending.textContent = pf.pending
-    ? pf.pending === 1
-      ? '1 logged trade happens after this date and is not counted yet.'
-      : `${pf.pending} logged trades happen after this date and are not counted yet.`
-    : '';
+  dom.pfPending.textContent = pf.pending ? t('pf.pending', pf.pending) : '';
 }
 
 function renderAllocation({ peak, drawdown }) {
@@ -334,15 +471,16 @@ function renderAllocation({ peak, drawdown }) {
       const use = document.createElement('button');
       use.type = 'button';
       use.className = 'use-btn';
-      use.textContent = 'Use';
+      use.textContent = t('alloc.use');
       use.addEventListener('click', () => {
         setAction('BUY');
         dom.amountInput.value = String(Math.round(row.amount));
         message(
-          `Loaded the −${(row.drawdown * 100).toFixed(0)}% rung: ${money(row.amount)}. Execute to log it at ${formatDate(
-            market().date
-          )}.`,
-          'ok'
+          'msg.loadedRung',
+          'ok',
+          (row.drawdown * 100).toFixed(0),
+          money(row.amount),
+          formatDate(market().date)
         );
         render();
       });
@@ -352,12 +490,12 @@ function renderAllocation({ peak, drawdown }) {
   );
 }
 
-function renderPreview({ date, currentPrice }, rows) {
+function renderPreview({ date, currentPrice }) {
   const draft = draftTrade();
   dom.unitsOutput.value = draft ? fmtUnits(draft.units) : '0.0000';
 
   if (!draft) {
-    dom.previewRow.innerHTML = '<td colspan="9" class="empty">Enter an amount to preview the trade.</td>';
+    dom.previewRow.innerHTML = `<td colspan="9" class="empty">${t('trade.previewEmpty')}</td>`;
     dom.executeBtn.disabled = false;
     return;
   }
@@ -365,12 +503,13 @@ function renderPreview({ date, currentPrice }, rows) {
   const candidate = buildLedger([...state.trades, draft], state.startingCash);
   const row = candidate.rows.find((r) => r.id === draft.id);
   const tag = draft.action === 'BUY' ? 'tag-buy' : 'tag-sell';
+  const label = t(draft.action === 'BUY' ? 'trade.buy' : 'trade.sell');
 
   dom.previewRow.innerHTML =
     `<td>${state.day}</td>` +
     `<td>${formatDate(date)}</td>` +
     `<td class="num">${fmtPrice(currentPrice)}</td>` +
-    `<td><span class="tag ${tag}">${draft.action}</span></td>` +
+    `<td><span class="tag ${tag}">${label}</span></td>` +
     `<td class="num">${fmtUnits(row.units)}</td>` +
     `<td class="num">${money(row.amount)}</td>` +
     `<td class="num">${money(row.cashAfter)}</td>` +
@@ -378,15 +517,14 @@ function renderPreview({ date, currentPrice }, rows) {
     `<td class="num">${money(row.equityAfter)}</td>`;
 
   dom.executeBtn.disabled = Boolean(candidate.error);
-  if (candidate.error) message(candidate.error);
+  if (candidate.error) messageRaw(describeError(candidate.error), 'error');
 }
 
 function renderLog(rows) {
-  dom.logCount.textContent = `${rows.length} trade${rows.length === 1 ? '' : 's'} logged`;
+  dom.logCount.textContent = t('log.count', rows.length);
 
   if (!rows.length) {
-    dom.logBody.innerHTML =
-      '<tr><td colspan="12" class="empty">No trades yet — rewind to a crash and buy the dip.</td></tr>';
+    dom.logBody.innerHTML = `<tr><td colspan="12" class="empty">${t('log.empty')}</td></tr>`;
     return;
   }
 
@@ -394,12 +532,13 @@ function renderLog(rows) {
     ...rows.map((row, index) => {
       const tr = document.createElement('tr');
       tr.classList.toggle('is-future', row.day > state.day);
+      const label = t(row.action === 'BUY' ? 'trade.buy' : 'trade.sell');
       tr.innerHTML =
         `<td class="num">${index + 1}</td>` +
         `<td class="num">${row.day}</td>` +
         `<td>${formatDate(row.date)}</td>` +
         `<td class="num">${fmtPrice(row.price)}</td>` +
-        `<td><span class="tag ${row.action === 'BUY' ? 'tag-buy' : 'tag-sell'}">${row.action}</span></td>` +
+        `<td><span class="tag ${row.action === 'BUY' ? 'tag-buy' : 'tag-sell'}">${label}</span></td>` +
         `<td class="num">${fmtUnits(row.units)}</td>` +
         `<td class="num">${money(row.amount)}</td>` +
         `<td class="num">${money(row.cashAfter)}</td>` +
@@ -409,10 +548,10 @@ function renderLog(rows) {
 
       const note = document.createElement('input');
       note.className = 'note-input';
-      note.placeholder = 'add note…';
+      note.placeholder = t('log.notePlaceholder');
       note.value = row.note ?? '';
       note.addEventListener('change', () => {
-        const trade = state.trades.find((t) => t.id === row.id);
+        const trade = state.trades.find((candidate) => candidate.id === row.id);
         if (trade) trade.note = note.value;
         save();
       });
@@ -421,7 +560,7 @@ function renderLog(rows) {
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'del-btn';
-      del.title = 'Delete trade';
+      del.title = t('log.delete');
       del.textContent = '✕';
       del.addEventListener('click', () => removeTrade(row.id));
       tr.children[11].appendChild(del);
@@ -438,7 +577,7 @@ function render() {
   renderMarket(snapshot);
   renderPortfolio(portfolioAt(rows, state.startingCash, state.day, snapshot.currentPrice));
   renderAllocation(snapshot);
-  renderPreview(snapshot, rows);
+  renderPreview(snapshot);
   renderLog(rows);
 
   chart.render({
@@ -449,6 +588,7 @@ function render() {
     day: state.day,
     trades: state.trades,
     visible: state.visible,
+    logScale: state.logScale,
   });
 }
 
@@ -462,14 +602,15 @@ function buildPresets() {
       else if (preset.at === 'last') day = series.count;
       else {
         const index = indexOnOrAfter(series.dates, preset.date);
-        if (index < 0) return null; // Outside the loaded window.
+        // Outside the loaded window, or so early it would just be the start.
+        if (index <= 0) return null;
         day = index + 1;
       }
 
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'preset';
-      button.textContent = preset.label;
+      button.textContent = t(preset.key);
       button.dataset.day = String(day);
       if (preset.tone) button.dataset.tone = preset.tone;
       button.addEventListener('click', () => setDay(day));
@@ -492,11 +633,11 @@ function bindEvents() {
     const check = buildLedger(state.trades, value);
     if (check.error) {
       dom.startingCash.value = String(state.startingCash);
-      message(`Starting cash of ${money(value)} cannot fund the logged trades. ${check.error}`);
+      messageRaw(t('msg.cashTooLow', money(value), describeError(check.error)), 'error');
       return;
     }
     state.startingCash = value;
-    message('');
+    message(null);
     save();
     render();
   });
@@ -507,10 +648,23 @@ function bindEvents() {
   dom.suggestBtn.addEventListener('click', suggest);
   dom.executeBtn.addEventListener('click', execute);
   dom.resetAll.addEventListener('click', resetAll);
+  dom.alertsToggle.addEventListener('change', () => setAlerts(dom.alertsToggle.checked));
+
+  dom.langSwitch.addEventListener('click', (event) => {
+    const button = event.target.closest('.lang-btn');
+    if (button) switchLang(button.dataset.lang);
+  });
+
+  dom.logToggle.addEventListener('click', () => {
+    state.logScale = !state.logScale;
+    dom.logToggle.setAttribute('aria-pressed', String(state.logScale));
+    save();
+    render();
+  });
 
   dom.legend.addEventListener('click', (event) => {
     const button = event.target.closest('.legend-item');
-    if (!button) return;
+    if (!button || !button.dataset.series) return;
     const key = button.dataset.series;
     state.visible[key] = !state.visible[key];
     button.setAttribute('aria-pressed', String(state.visible[key]));
@@ -533,100 +687,120 @@ function bindEvents() {
 }
 
 /**
- * The page is written for the index, but the key-less data source quotes the
- * SPY ETF instead. Say so wherever the instrument is named rather than letting
- * ETF prices sit under an "S&P 500" label.
+ * The page is written for the index, but a fallback data source may quote the
+ * SPY ETF instead. Name the instrument from the data rather than hardcoding it,
+ * and disclose both the ETF substitution and the monthly-average resolution.
  */
 function applyInstrumentLabels() {
   const name = series.name ?? 'S&P 500';
   document.querySelector('.brand-sub').textContent = name;
-  document.querySelector('.col-right .panel-head h2').textContent = `${name} · Historical Price`;
-  document.title = `Crash Buying Simulator · ${name}`;
+  dom.chartTitle.textContent = t('panel.chart', name);
+  document.title = t('app.title', name);
 
-  if (!series.proxy) return;
-  const note = document.createElement('p');
-  note.className = 'proxy-note';
-  note.textContent =
-    `Prices are ${series.symbol}, the ETF that tracks the index — roughly a tenth of the index level. ` +
-    'Drawdowns, the allocation ladder and returns are unaffected; add a FRED_API_KEY secret to switch to true index levels.';
-  document.querySelector('.footer').prepend(note);
+  for (const node of document.querySelectorAll('.footer-note')) node.remove();
+
+  const notes = [];
+  if (series.proxy) notes.push(t('proxy.note', series.symbol));
+  if (series.monthlyNote) notes.push(t('note.monthly', series.dailyFrom && formatDate(series.dailyFrom)));
+
+  const footer = document.querySelector('.footer');
+  for (const text of notes.reverse()) {
+    const node = document.createElement('p');
+    node.className = 'footer-note';
+    node.textContent = text;
+    footer.prepend(node);
+  }
 }
 
-function renderDataStatus(live, bootstrapped) {
+function renderDataStatus() {
+  const live = lastLive;
   const stale = isStale(series);
-  const state_ = live?.ok || bootstrapped ? 'live' : stale ? 'error' : 'daily';
+  const status = live?.ok || bootstrapped ? 'live' : stale ? 'error' : 'daily';
   const label = live?.ok
-    ? `live · ${live.source} · ${formatDate(series.end)}`
+    ? t('status.live', live.source, formatDate(series.end))
     : bootstrapped
-      ? `direct fetch · ${formatDate(series.end)}`
-      : `daily snapshot · ${formatDate(series.end)}`;
+      ? t('status.direct', formatDate(series.end))
+      : t('status.daily', formatDate(series.end));
 
-  dom.dataStatus.dataset.state = state_;
+  dom.dataStatus.dataset.state = status;
   dom.dataStatus.textContent = label;
-  dom.dataStatus.title = live?.ok
-    ? `Topped up in-browser from ${live.source}.`
-    : 'Live top-up unavailable (usually a CORS block); showing the daily committed snapshot.';
+  dom.dataStatus.title = live?.ok ? t('status.liveTitle', live.source) : t('status.offlineTitle');
 
   dom.dataMeta.textContent =
-    `${series.count.toLocaleString('en-US')} trading days · ${formatDate(series.start)} → ${formatDate(
-      series.end
-    )} · ${series.symbol ?? '?'} via ${series.source ?? 'n/a'}` + (series.proxy ? ' · ETF proxy' : '');
+    t(
+      'meta.summary',
+      series.count.toLocaleString('en-US'),
+      formatDate(series.start),
+      formatDate(series.end),
+      series.symbol ?? '?',
+      series.source ?? 'n/a'
+    ) + (series.proxy ? t('meta.proxy') : '');
 
   // Don't overwrite the bootstrap notice, which is the more actionable message.
   if (stale && !bootstrapped) {
     dom.dataError.hidden = false;
-    dom.dataError.textContent = `Price data is ${daysSince(
-      series.end
-    )} days old. The daily refresh workflow may not be running — check the "Update S&P 500 data" GitHub Action.`;
+    dom.dataError.textContent = t('err.stale', daysSince(series.end));
   }
 }
 
 async function main() {
-  let bootstrapped = false;
+  const saved = readSaved();
+  setLang(LANGS.includes(saved?.lang) ? saved.lang : DEFAULT_LANG);
+  for (const button of dom.langSwitch.children) {
+    button.setAttribute('aria-pressed', String(button.dataset.lang === getLang()));
+  }
+  applyStatic();
+  dom.dataStatus.textContent = t('status.loading');
+
   try {
     series = await loadSeries();
   } catch (error) {
     // No committed snapshot yet — try to pull the history in the browser so the
     // page is usable before the first CI refresh lands.
-    dom.dataStatus.textContent = 'fetching history…';
+    dom.dataStatus.textContent = t('status.fetching');
     series = await bootstrapSeries();
     if (!series) {
       dom.dataError.hidden = false;
-      dom.dataError.textContent = `${error.message} A direct in-browser fetch was also blocked, so there is nothing to display.`;
+      dom.dataError.textContent = t('err.noDataAtAll', error.message);
       dom.dataStatus.dataset.state = 'error';
-      dom.dataStatus.textContent = 'no data';
+      dom.dataStatus.textContent = t('status.noData');
       return;
     }
     bootstrapped = true;
     dom.dataError.hidden = false;
-    dom.dataError.textContent =
-      'No committed price snapshot found — this history was fetched directly in your browser and is not cached. Run the "Update S&P 500 data" workflow to commit it.';
+    dom.dataError.textContent = t('err.bootstrap');
   }
 
   peaks = runningPeaks(series.closes);
-  episodes = drawdownEpisodes(series.closes);
+  episodes = drawdownEpisodes(series.closes, episodeThreshold());
   state.day = series.count;
-  applyInstrumentLabels();
 
-  restore();
+  restore(saved);
   dom.startingCash.value = String(state.startingCash);
+  dom.alertsToggle.checked = state.alerts;
+  dom.logToggle.setAttribute('aria-pressed', String(state.logScale));
+  for (const button of dom.legend.querySelectorAll('[data-series]')) {
+    button.setAttribute('aria-pressed', String(state.visible[button.dataset.series]));
+  }
+  alertedLevel = Math.floor((Math.max(0, -market().drawdown) * 100) / ALERT_STEP) * ALERT_STEP;
 
+  applyInstrumentLabels();
   chart = createChart(dom.chart, dom.chartTip, { onScrub: (day) => setDay(day) });
   buildPresets();
   bindEvents();
   render();
   dom.layout.setAttribute('aria-busy', 'false');
-  renderDataStatus(null, bootstrapped);
+  renderDataStatus();
 
   // Best-effort top-up; recompute the derived series if it added a bar.
-  const live = await refreshLive(series);
-  if (live.ok) {
+  lastLive = await refreshLive(series);
+  if (lastLive.ok) {
     peaks = runningPeaks(series.closes);
-    episodes = drawdownEpisodes(series.closes);
-    if (live.added && state.day === series.count - 1) state.day = series.count;
+    episodes = drawdownEpisodes(series.closes, episodeThreshold());
+    if (lastLive.added && state.day === series.count - 1) state.day = series.count;
     render();
   }
-  renderDataStatus(live, bootstrapped);
+  renderDataStatus();
 }
 
 main();

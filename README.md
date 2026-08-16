@@ -52,54 +52,78 @@ Prices are index closes: no dividends, fees, taxes or slippage. Educational only
 
 ## Data
 
-`data/sp500-daily.json` holds the daily close series as parallel `dates` / `closes`
-arrays, on a rolling ~10.6-year window.
+`data/sp500-daily.json` holds the close series as parallel `dates` / `closes`
+arrays, covering **the whole published history of the index**.
 
-Two layers keep it current:
+| Segment                | Source                          | Resolution        |
+| ---------------------- | ------------------------------- | ----------------- |
+| Jan 1871 → present     | Shiller long series             | monthly           |
+| last ~10 years         | FRED `SP500` (needs a free key) | daily             |
 
-1. **Daily refresh (reliable).** `.github/workflows/update-data.yml` runs
-   `scripts/fetch-sp500.mjs` at 23:10 UTC on weekdays — after the 16:00 ET close in
-   both EST and EDT — and commits the file when it changes. It refuses to overwrite
-   the committed series with anything shorter or older, so a bad upstream response
-   fails the run instead of corrupting the data.
-2. **Live top-up (best effort).** On load the page fetches the latest quote directly
-   and appends or replaces today's bar. Those endpoints are key-less, so a browser may
-   refuse them on CORS grounds; when that happens the page silently stays on the
-   committed snapshot. The status pill in the header shows which is in effect —
-   `live · <source>` or `daily snapshot` — and the page warns if the snapshot is more
-   than five days old.
+Both are real S&P 500 index levels, so they splice without any rescaling: the
+monthly history runs up to the day the daily segment starts, and daily takes over
+from there.
 
-### Getting true index levels
+**The monthly bars are averages of daily closes, not month-end closes.** That is
+how Shiller's series is built, and it means intramonth crashes look shallower than
+they were — October 1987 averages to about −13% rather than Black Monday's −20% in
+a single session. The page says so in a footer note. Adding the FRED key restores
+true daily resolution for the recent decade.
+
+### Getting daily resolution
 
 Which sources answer a GitHub-hosted runner was measured, not assumed:
 
-| Source                        | From CI                            |
-| ----------------------------- | ---------------------------------- |
-| `api.stlouisfed.org` (FRED)   | 200 — needs a free key             |
-| `stockanalysis.com/api/.../s/`| 200, no key — **ETFs only**        |
-| `stockanalysis.com/api/.../i/`| 400 for every S&P index symbol     |
-| `fred.stlouisfed.org/graph`   | connection times out               |
-| `stooq.com`                   | 200, but an HTML robots page       |
-| `query{1,2}.finance.yahoo.com`| 429 across the runner IP range     |
+| Source                         | From CI                          |
+| ------------------------------ | -------------------------------- |
+| `raw.githubusercontent.com`    | 200 — Shiller monthly, 1871+     |
+| `api.stlouisfed.org` (FRED)    | 200 — needs a free key           |
+| `stockanalysis.com` `/s/`      | 200, no key — ETFs only, max 10Y |
+| `stockanalysis.com` `/i/`      | 400 for every S&P index symbol   |
+| `fred.stlouisfed.org/graph`    | connection times out             |
+| `stooq.com`                    | 200, but an HTML robots page     |
+| `query{1,2}.finance.yahoo.com` | 429 across the runner IP range   |
 
-So **out of the box the data is SPY**, the ETF that tracks the index. It quotes about
-a tenth of the index level (~$776 vs ~$7,799), and the page labels itself accordingly.
-Because every other figure here — drawdown, ladder trigger, return — is a percentage,
-the simulation behaves the same either way.
-
-To switch to real S&P 500 index levels, [get a free FRED API key][fred] (instant, no
-card) and add it as a repository secret named `FRED_API_KEY` under
-**Settings → Secrets and variables → Actions**. The next run picks it up automatically
-and prefers it over SPY.
+[Get a free FRED API key][fred] (instant, no card) and add it as a repository
+secret named `FRED_API_KEY` under **Settings → Secrets and variables → Actions**.
+The next run picks it up automatically.
 
 [fred]: https://fredaccount.stlouisfed.org/apikeys
+
+If the long history cannot be fetched at all, the script falls back to the SPY
+ETF — about a tenth of the index level — and the page labels itself as showing a
+proxy rather than silently mislabelling ETF prices as the index.
+
+### Refresh
+
+1. **Daily.** `.github/workflows/update-data.yml` runs `scripts/fetch-sp500.mjs` at
+   23:10 UTC on weekdays and commits the file when it changes. It refuses to
+   overwrite a series with a shorter or older one from the same source.
+2. **Live top-up (best effort).** On load the page fetches the latest quote and
+   appends today's bar. Those endpoints are key-less, so a browser may refuse them
+   on CORS grounds; the status pill shows `live · <source>` or `daily snapshot`. A
+   quote more than 30% away from the last close is rejected, so an index quote can
+   never be spliced onto an ETF series.
 
 Run the fetch by hand with:
 
 ```sh
-node scripts/fetch-sp500.mjs              # SPY
-FRED_API_KEY=... node scripts/fetch-sp500.mjs   # S&P 500 index
+node scripts/fetch-sp500.mjs                    # monthly, 1871+
+FRED_API_KEY=... node scripts/fetch-sp500.mjs   # + daily for the last decade
 ```
+
+## Language
+
+The interface ships in English and 繁體中文, switchable from the top right and
+remembered in `localStorage`. Strings live in `assets/i18n.js`; anything a
+translation has not filled in falls back to English.
+
+## Drawdown alerts
+
+Tick **Alert on every −10% of drawdown** in Current Market. As the day pointer
+moves, each new 10% band the index falls through raises an on-page toast, plus a
+browser notification if you grant permission. Recovering to a fresh high rearms
+the whole ladder, so the next selloff alerts from −10% again.
 
 ## Deploying
 

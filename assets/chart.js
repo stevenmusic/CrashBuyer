@@ -3,6 +3,7 @@
 // has to work from a static host with nothing external to fetch.
 
 import { axisNumber, formatDate, percent, price as fmtPrice } from './format.js';
+import { t } from './i18n.js';
 
 const PAD = { top: 12, right: 12, bottom: 24, left: 56 };
 const Y_TICKS = 5; // 5 intervals -> 6 labels, matching the reference layout.
@@ -39,8 +40,21 @@ export function createChart(canvas, tipEl, { onScrub }) {
     return { w, h };
   }
 
+  // Bar timestamps, cached against the dates array they came from. The x axis
+  // is time-based rather than index-based because the series can mix monthly
+  // bars (pre-1990s) with daily ones — spacing those evenly would squeeze a
+  // century of history into the same width as the last decade.
+  let timeCache = { dates: null, times: [] };
+
+  function timesFor(dates) {
+    if (timeCache.dates !== dates) {
+      timeCache = { dates, times: dates.map((d) => Date.parse(`${d}T00:00:00Z`)) };
+    }
+    return timeCache.times;
+  }
+
   function buildScales(w, h) {
-    const { closes } = state;
+    const { closes, dates } = state;
     const n = closes.length;
     let min = Infinity;
     let max = -Infinity;
@@ -53,8 +67,23 @@ export function createChart(canvas, tipEl, { onScrub }) {
       max += 1;
     }
 
+    const times = timesFor(dates);
+    const tMin = times[0];
+    const tMax = times[n - 1];
+    const tSpan = tMax - tMin || 1;
+
     const innerW = Math.max(1, w - PAD.left - PAD.right);
     const innerH = Math.max(1, h - PAD.top - PAD.bottom);
+
+    // Over a century the index grows ~1700x, so a linear axis would press
+    // everything before 1980 flat against the floor. Log keeps equal percentage
+    // moves the same height, which is what a drawdown tool is about.
+    const log = state.logScale;
+    const lo = log ? Math.log(min) : min;
+    const hi = log ? Math.log(max) : max;
+    const span = hi - lo || 1;
+
+    const x = (i) => PAD.left + ((times[i] - tMin) / tSpan) * innerW;
 
     return {
       n,
@@ -62,13 +91,53 @@ export function createChart(canvas, tipEl, { onScrub }) {
       max,
       innerW,
       innerH,
-      x: (i) => PAD.left + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW),
-      y: (v) => PAD.top + innerH - ((v - min) / (max - min)) * innerH,
+      times,
+      tMin,
+      tMax,
+      x,
+      xAtTime: (t) => PAD.left + ((t - tMin) / tSpan) * innerW,
+      y: (v) => PAD.top + innerH - (((log ? Math.log(v) : v) - lo) / span) * innerH,
+      ticks: log ? logTicks(min, max) : linearTicks(min, max),
       indexAt: (px) => {
-        const t = (px - PAD.left) / innerW;
-        return Math.min(n - 1, Math.max(0, Math.round(t * (n - 1))));
+        const target = tMin + ((px - PAD.left) / innerW) * tSpan;
+        let lo = 0;
+        let hi = n - 1;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (times[mid] < target) lo = mid + 1;
+          else hi = mid;
+        }
+        // Snap to whichever neighbour is actually closer in time.
+        if (lo > 0 && Math.abs(times[lo - 1] - target) <= Math.abs(times[lo] - target)) lo--;
+        return lo;
       },
     };
+  }
+
+  /** Evenly spaced values spanning the data, as the linear axis always used. */
+  function linearTicks(min, max) {
+    return Array.from({ length: Y_TICKS + 1 }, (_, i) => min + ((max - min) * i) / Y_TICKS);
+  }
+
+  /** 1-2-5 decade steps, the conventional log-axis ladder. */
+  function logTicks(min, max) {
+    const out = [];
+    for (let exp = Math.floor(Math.log10(min)); exp <= Math.ceil(Math.log10(max)); exp++) {
+      for (const mantissa of [1, 2, 5]) {
+        const value = mantissa * 10 ** exp;
+        if (value >= min && value <= max) out.push(value);
+      }
+    }
+    // Very narrow ranges can fall between rungs; fall back rather than show none.
+    return out.length >= 3 ? out : linearTicks(min, max);
+  }
+
+  /** Year step that yields roughly 8–12 labels across the visible span. */
+  function yearStep(spanYears) {
+    for (const step of [1, 2, 5, 10, 20, 25, 50, 100]) {
+      if (spanYears / step <= 12) return step;
+    }
+    return 200;
   }
 
   function drawGrid(w, h) {
@@ -81,8 +150,7 @@ export function createChart(canvas, tipEl, { onScrub }) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
-    for (let i = 0; i <= Y_TICKS; i++) {
-      const value = min + ((max - min) * i) / Y_TICKS;
+    for (const value of plot.ticks) {
       const py = Math.round(y(value)) + 0.5;
       ctx.beginPath();
       ctx.moveTo(PAD.left, py);
@@ -91,23 +159,25 @@ export function createChart(canvas, tipEl, { onScrub }) {
       ctx.fillText(axisNumber(value), PAD.left - 8, py);
     }
 
-    // Year boundaries along the bottom.
+    // Year gridlines on a round step, placed by date so a 150-year series and a
+    // 10-year one are both readable.
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const { dates } = state;
-    let lastLabelX = -Infinity;
-    for (let i = 1; i < dates.length; i++) {
-      if (dates[i].slice(0, 4) === dates[i - 1].slice(0, 4)) continue;
-      const px = Math.round(plot.x(i)) + 0.5;
+    const firstYear = new Date(plot.tMin).getUTCFullYear();
+    const lastYear = new Date(plot.tMax).getUTCFullYear();
+    const step = yearStep(lastYear - firstYear || 1);
+    const startYear = Math.ceil(firstYear / step) * step;
+
+    for (let year = startYear; year <= lastYear; year += step) {
+      const px = Math.round(plot.xAtTime(Date.UTC(year, 0, 1))) + 0.5;
+      if (px < PAD.left || px > w - PAD.right) continue;
       ctx.strokeStyle = COLORS.grid;
       ctx.beginPath();
       ctx.moveTo(px, PAD.top);
       ctx.lineTo(px, h - PAD.bottom);
       ctx.stroke();
-      if (px - lastLabelX < 34) continue;
-      lastLabelX = px;
       ctx.fillStyle = COLORS.axis;
-      ctx.fillText(dates[i].slice(0, 4), px, h - PAD.bottom + 6);
+      ctx.fillText(String(year), px, h - PAD.bottom + 6);
     }
     ctx.restore();
   }
@@ -221,10 +291,7 @@ export function createChart(canvas, tipEl, { onScrub }) {
   function showTip(index, event) {
     const { dates, closes, peaks } = state;
     const dd = closes[index] / peaks[index] - 1;
-    tipEl.innerHTML =
-      `<b>Day ${index + 1}</b> · ${formatDate(dates[index])}<br />` +
-      `${fmtPrice(closes[index])}<br />` +
-      `Drawdown ${percent(dd)}`;
+    tipEl.innerHTML = t('chart.tip', index + 1, formatDate(dates[index]), fmtPrice(closes[index]), percent(dd));
     tipEl.hidden = false;
 
     const wrap = tipEl.parentElement.getBoundingClientRect();

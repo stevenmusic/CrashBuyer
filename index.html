@@ -6,7 +6,7 @@
     <title>Crash Buying Simulator · S&P 500</title>
     <meta
       name="description"
-      content="Rewind the S&P 500, buy the crashes with a fixed drawdown allocation ladder, and see what the portfolio would be worth today."
+      content="Rewind the S&P 500 across its whole history, buy the crashes with a fixed drawdown allocation ladder, and see what the portfolio would be worth today."
     />
     <link rel="stylesheet" href="assets/styles.css" />
     <link
@@ -17,31 +17,34 @@
   <body>
     <header class="topbar">
       <span class="brand-mark">S&amp;P</span>
-      <h1>Crash Buying Simulator</h1>
+      <h1 data-i18n="app.brand">Crash Buying Simulator</h1>
       <span class="brand-sub">S&amp;P 500</span>
       <div class="topbar-right">
+        <div id="lang-switch" class="lang-switch" role="group" data-i18n-aria="lang.label">
+          <button type="button" class="lang-btn" data-lang="en" aria-pressed="true">EN</button>
+          <button type="button" class="lang-btn" data-lang="zh" aria-pressed="false">中文</button>
+        </div>
         <span id="data-status" class="data-status" data-state="loading">loading data…</span>
-        <button id="reset-all" class="ghost-btn" type="button" title="Clear trades and restore defaults">
-          Reset
-        </button>
+        <button id="reset-all" class="ghost-btn" type="button" data-i18n="btn.reset">Reset</button>
       </div>
     </header>
 
     <p id="data-error" class="data-error" hidden></p>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
 
     <main class="layout" id="layout" aria-busy="true">
       <!-- ---------------------------------------------------------------- -->
       <div class="col col-left">
         <section class="panel">
           <div class="panel-head">
-            <h2>Current Market</h2>
-            <span class="panel-note">auto-updates by Day Pointer</span>
+            <h2 data-i18n="panel.currentMarket">Current Market</h2>
+            <span class="panel-note" data-i18n="panel.currentMarketNote">auto-updates by Day Pointer</span>
           </div>
           <div class="panel-body">
             <div class="kv">
-              <span class="kv-label">Day Pointer</span>
+              <span class="kv-label" data-i18n="mkt.dayPointer">Day Pointer</span>
               <span class="stepper">
-                <button id="day-prev" class="step-btn" type="button" aria-label="Previous day">&#9664;</button>
+                <button id="day-prev" class="step-btn" type="button" data-i18n-aria="mkt.prevDay">&#9664;</button>
                 <input
                   id="day-input"
                   class="step-input"
@@ -49,26 +52,26 @@
                   min="1"
                   step="1"
                   inputmode="numeric"
-                  aria-label="Day pointer"
+                  data-i18n-aria="mkt.dayPointer"
                 />
-                <button id="day-next" class="step-btn" type="button" aria-label="Next day">&#9654;</button>
+                <button id="day-next" class="step-btn" type="button" data-i18n-aria="mkt.nextDay">&#9654;</button>
                 <span class="step-total">/ <b id="day-total">—</b></span>
               </span>
             </div>
             <div class="kv">
-              <span class="kv-label">Current Date</span>
+              <span class="kv-label" data-i18n="mkt.currentDate">Current Date</span>
               <span id="cur-date" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label">Current Price</span>
+              <span class="kv-label" data-i18n="mkt.currentPrice">Current Price</span>
               <span id="cur-price" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label">Current Drawdown</span>
+              <span class="kv-label" data-i18n="mkt.currentDrawdown">Current Drawdown</span>
               <span id="cur-dd" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label">Peak To Date</span>
+              <span class="kv-label" data-i18n="mkt.peakToDate">Peak To Date</span>
               <span id="cur-peak" class="kv-value">—</span>
             </div>
 
@@ -83,39 +86,45 @@
               </div>
             </div>
 
+            <label class="alert-toggle">
+              <input id="alerts-toggle" type="checkbox" />
+              <span data-i18n="alerts.label">Alert on every −10% of drawdown</span>
+            </label>
+            <p id="alerts-hint" class="alerts-hint" hidden></p>
+
             <div id="presets" class="presets"></div>
           </div>
         </section>
 
         <section class="panel">
-          <div class="panel-head"><h2>Portfolio</h2></div>
+          <div class="panel-head"><h2 data-i18n="panel.portfolio">Portfolio</h2></div>
           <div class="panel-body">
             <div class="kv">
-              <span class="kv-label">Starting Cash</span>
+              <span class="kv-label" data-i18n="pf.startingCash">Starting Cash</span>
               <input id="starting-cash" class="cash-input" type="number" min="0" step="1000" inputmode="numeric" />
             </div>
             <div class="kv">
-              <span class="kv-label">Cash Balance</span>
+              <span class="kv-label" data-i18n="pf.cashBalance">Cash Balance</span>
               <span id="pf-cash" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label">Units Held</span>
+              <span class="kv-label" data-i18n="pf.unitsHeld">Units Held</span>
               <span id="pf-units" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label">Market Value</span>
+              <span class="kv-label" data-i18n="pf.marketValue">Market Value</span>
               <span id="pf-mv" class="kv-value">—</span>
             </div>
             <div class="kv kv-total">
-              <span class="kv-label">Total Equity</span>
+              <span class="kv-label" data-i18n="pf.totalEquity">Total Equity</span>
               <span id="pf-equity" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label">P&amp;L</span>
+              <span class="kv-label" data-i18n="pf.pnl">P&amp;L</span>
               <span id="pf-pnl" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label">Return %</span>
+              <span class="kv-label" data-i18n="pf.returnPct">Return %</span>
               <span id="pf-ret" class="kv-value">—</span>
             </div>
             <p id="pf-pending" class="pf-pending" hidden></p>
@@ -124,8 +133,8 @@
 
         <section class="panel">
           <div class="panel-head">
-            <h2>Allocation Guide</h2>
-            <span class="panel-note">% of starting cash</span>
+            <h2 data-i18n="panel.allocation">Allocation Guide</h2>
+            <span class="panel-note" data-i18n="panel.allocationNote">% of starting cash</span>
           </div>
           <div class="panel-body panel-body-flush">
             <table class="grid alloc">
@@ -138,10 +147,10 @@
               </colgroup>
               <thead>
                 <tr>
-                  <th>Drawdown</th>
-                  <th class="num">Trigger Price</th>
-                  <th class="num">% Invest</th>
-                  <th class="num">Amount</th>
+                  <th data-i18n="alloc.drawdown">Drawdown</th>
+                  <th class="num" data-i18n="alloc.triggerPrice">Trigger Price</th>
+                  <th class="num" data-i18n="alloc.pctInvest">% Invest</th>
+                  <th class="num" data-i18n="alloc.amount">Amount</th>
                   <th></th>
                 </tr>
               </thead>
@@ -155,53 +164,60 @@
       <div class="col col-right">
         <section class="panel">
           <div class="panel-head">
-            <h2>S&amp;P 500 · Historical Price</h2>
+            <h2 id="chart-title">S&amp;P 500 · Historical Price</h2>
             <div id="chart-legend" class="legend">
               <button class="legend-item" data-series="price" aria-pressed="true">
-                <i class="swatch swatch-price"></i>Price
+                <i class="swatch swatch-price"></i><span data-i18n="legend.price">Price</span>
               </button>
               <button class="legend-item" data-series="peak" aria-pressed="true">
-                <i class="swatch swatch-peak"></i>Peak
+                <i class="swatch swatch-peak"></i><span data-i18n="legend.peak">Peak</span>
               </button>
               <button class="legend-item" data-series="buy" aria-pressed="true">
-                <i class="swatch swatch-buy"></i>BUY
+                <i class="swatch swatch-buy"></i><span data-i18n="legend.buy">BUY</span>
               </button>
               <button class="legend-item" data-series="sell" aria-pressed="true">
-                <i class="swatch swatch-sell"></i>SELL
+                <i class="swatch swatch-sell"></i><span data-i18n="legend.sell">SELL</span>
+              </button>
+              <button id="log-toggle" class="legend-item legend-log" aria-pressed="true">
+                <span data-i18n="legend.log">LOG</span>
               </button>
             </div>
           </div>
           <div class="panel-body panel-body-flush">
             <div id="chart-wrap" class="chart-wrap">
-              <canvas id="chart" role="img" aria-label="S&P 500 historical price with drawdown episodes"></canvas>
+              <canvas id="chart" role="img" data-i18n-aria="chart.aria"></canvas>
               <div id="chart-tip" class="chart-tip" hidden></div>
             </div>
-            <p class="chart-hint">Click or drag on the chart to move the Day Pointer.</p>
+            <p class="chart-hint" data-i18n="chart.hint">Click or drag on the chart to move the Day Pointer.</p>
           </div>
         </section>
 
         <section class="panel">
-          <div class="panel-head"><h2>Trade Input</h2></div>
+          <div class="panel-head"><h2 data-i18n="panel.tradeInput">Trade Input</h2></div>
           <div class="panel-body">
             <div class="trade-row">
               <div class="field">
-                <label>Action</label>
+                <label data-i18n="trade.action">Action</label>
                 <div class="toggle">
-                  <button id="act-buy" class="toggle-btn is-buy is-active" type="button" aria-pressed="true">Buy</button>
-                  <button id="act-sell" class="toggle-btn is-sell" type="button" aria-pressed="false">Sell</button>
+                  <button id="act-buy" class="toggle-btn is-buy is-active" type="button" aria-pressed="true" data-i18n="trade.buy">
+                    Buy
+                  </button>
+                  <button id="act-sell" class="toggle-btn is-sell" type="button" aria-pressed="false" data-i18n="trade.sell">
+                    Sell
+                  </button>
                 </div>
               </div>
               <div class="field">
-                <label for="amount-input">Amount ($)</label>
+                <label for="amount-input" data-i18n="trade.amount">Amount ($)</label>
                 <input id="amount-input" class="text-input num" type="number" min="0" step="100" inputmode="decimal" value="0" />
               </div>
               <div class="field">
-                <label for="units-output">Units (auto)</label>
+                <label for="units-output" data-i18n="trade.units">Units (auto)</label>
                 <input id="units-output" class="text-input num is-readonly" type="text" value="0.0000" readonly tabindex="-1" />
               </div>
               <div class="field field-actions">
-                <button id="suggest-btn" class="ghost-btn tall" type="button">Suggest</button>
-                <button id="execute-btn" class="primary-btn" type="button">Execute Trade</button>
+                <button id="suggest-btn" class="ghost-btn tall" type="button" data-i18n="trade.suggest">Suggest</button>
+                <button id="execute-btn" class="primary-btn" type="button" data-i18n="trade.execute">Execute Trade</button>
               </div>
             </div>
 
@@ -209,21 +225,21 @@
 
             <div class="preview">
               <div class="preview-head">
-                <span>Trade Preview</span>
-                <span class="preview-note">mirrors one row of the transaction log</span>
+                <span data-i18n="trade.preview">Trade Preview</span>
+                <span class="preview-note" data-i18n="trade.previewNote">mirrors one row of the transaction log</span>
               </div>
               <table class="grid preview-grid">
                 <thead>
                   <tr>
-                    <th>Day</th>
-                    <th>Date</th>
-                    <th class="num">Price</th>
-                    <th>Action</th>
-                    <th class="num">Units</th>
-                    <th class="num">Amount</th>
-                    <th class="num">Cash After</th>
-                    <th class="num">Units After</th>
-                    <th class="num">Equity After</th>
+                    <th data-i18n="col.day">Day</th>
+                    <th data-i18n="col.date">Date</th>
+                    <th class="num" data-i18n="col.price">Price</th>
+                    <th data-i18n="col.action">Action</th>
+                    <th class="num" data-i18n="col.units">Units</th>
+                    <th class="num" data-i18n="col.amount">Amount</th>
+                    <th class="num" data-i18n="col.cashAfter">Cash After</th>
+                    <th class="num" data-i18n="col.unitsAfter">Units After</th>
+                    <th class="num" data-i18n="col.equityAfter">Equity After</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -238,7 +254,7 @@
 
         <section class="panel">
           <div class="panel-head">
-            <h2>Transaction Log</h2>
+            <h2 data-i18n="panel.log">Transaction Log</h2>
             <span id="log-count" class="panel-note">0 trades logged</span>
           </div>
           <div class="panel-body panel-body-flush">
@@ -246,17 +262,17 @@
               <table class="grid log">
                 <thead>
                   <tr>
-                    <th class="num">#</th>
-                    <th class="num">Day</th>
-                    <th>Date</th>
-                    <th class="num">Price</th>
-                    <th>Action</th>
-                    <th class="num">Units</th>
-                    <th class="num">Amount</th>
-                    <th class="num">Cash After</th>
-                    <th class="num">Units After</th>
-                    <th class="num">Equity After</th>
-                    <th>Notes</th>
+                    <th class="num" data-i18n="col.num">#</th>
+                    <th class="num" data-i18n="col.day">Day</th>
+                    <th data-i18n="col.date">Date</th>
+                    <th class="num" data-i18n="col.price">Price</th>
+                    <th data-i18n="col.action">Action</th>
+                    <th class="num" data-i18n="col.units">Units</th>
+                    <th class="num" data-i18n="col.amount">Amount</th>
+                    <th class="num" data-i18n="col.cashAfter">Cash After</th>
+                    <th class="num" data-i18n="col.unitsAfter">Units After</th>
+                    <th class="num" data-i18n="col.equityAfter">Equity After</th>
+                    <th data-i18n="col.notes">Notes</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -269,7 +285,7 @@
     </main>
 
     <footer class="footer">
-      <span
+      <span data-i18n="footer.disclaimer"
         >Educational simulation only — not investment advice. Index prices exclude dividends, fees and
         taxes.</span
       >

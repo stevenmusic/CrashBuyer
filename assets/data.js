@@ -12,8 +12,15 @@
 const DATA_URL = new URL('../data/sp500-daily.json', import.meta.url);
 const LIVE_TIMEOUT_MS = 6000;
 
-/** Trading days after which the committed snapshot is called out as stale. */
-const STALE_AFTER_DAYS = 5;
+/**
+ * Days after which the committed snapshot is called out as stale. A monthly
+ * series is up to six weeks behind by construction, so it gets a wider window
+ * than a daily one — otherwise it would permanently claim to be stale.
+ */
+const STALE_AFTER_DAILY = 5;
+// Shiller bars are dated the 1st, so the newest one is legitimately ~60 days
+// old just before the next month posts.
+const STALE_AFTER_MONTHLY = 70;
 
 /** Rolling window kept in memory, matching what scripts/fetch-sp500.mjs commits. */
 const WINDOW_YEARS = 10.6;
@@ -125,7 +132,8 @@ export function daysSince(iso) {
 }
 
 export function isStale(series) {
-  return daysSince(series.end) > STALE_AFTER_DAYS;
+  const isDaily = Boolean(series.dailyFrom) && series.end >= series.dailyFrom;
+  return daysSince(series.end) > (isDaily ? STALE_AFTER_DAILY : STALE_AFTER_MONTHLY);
 }
 
 async function fetchWithTimeout(url, init = {}, timeoutMs = LIVE_TIMEOUT_MS) {
@@ -189,6 +197,14 @@ export async function refreshLive(series) {
 
     const last = series.dates.length - 1;
     const close = Math.round(quote.close * 100) / 100;
+
+    // The live endpoints quote the index (~7,800) while a fallback snapshot may
+    // hold the SPY ETF (~780). Splicing one onto the other would wreck the
+    // chart, so reject anything that is not in the same ballpark as the series.
+    const ratio = close / series.closes[last];
+    if (!Number.isFinite(ratio) || ratio < 0.7 || ratio > 1.4) {
+      return { ok: false, reason: 'scale-mismatch' };
+    }
 
     if (quote.date > series.dates[last]) {
       series.dates.push(quote.date);
