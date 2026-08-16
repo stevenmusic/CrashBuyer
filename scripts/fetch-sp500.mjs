@@ -17,22 +17,66 @@ const OUT = resolve(ROOT, 'data/sp500-daily.json');
 // pointer unwieldy.
 const YEARS = 10.6;
 
+// FRED is first because it is the only one of the three that reliably answers
+// from CI: Stooq serves datacenter IPs an HTML interstitial and Yahoo rate-limits
+// them with 429s. Its SP500 series is a rolling 10 years of daily closes, which
+// is the window this simulator wants anyway. The other two stay as fallbacks and
+// as the sources the browser uses for live top-ups.
 const sources = [
+  { name: 'fred', fetch: fromFred },
   { name: 'stooq', fetch: fromStooq },
   { name: 'yahoo', fetch: fromYahoo },
 ];
 
-async function get(url, accept) {
-  const res = await fetch(url, {
-    headers: {
-      accept,
-      // Both endpoints serve bot-ish clients unevenly without a browser UA.
-      'user-agent':
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36',
-    },
-  });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function get(url, accept, attempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          accept,
+          // These endpoints serve bot-ish clients unevenly without a browser UA.
+          'user-agent':
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36',
+        },
+      });
+      if (res.ok) return res;
+      // Rate limits and upstream blips are worth another try; 4xx is not.
+      if (res.status !== 429 && res.status < 500) {
+        throw new Error(`${res.status} ${res.statusText}`);
+      }
+      lastError = new Error(`${res.status} ${res.statusText}`);
+    } catch (err) {
+      lastError = err;
+    }
+    if (attempt < attempts) await sleep(attempt * 2000);
+  }
+  throw lastError;
+}
+
+/**
+ * FRED's CSV is `observation_date,SP500` (older exports use `DATE`), with "."
+ * standing in for market holidays.
+ */
+async function fromFred() {
+  const res = await get('https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500', 'text/csv');
+  const text = await res.text();
+  const lines = text.trim().split('\n');
+  if (!/^(observation_date|DATE),/i.test(lines[0])) {
+    throw new Error(`unexpected CSV header: ${lines[0]?.slice(0, 60)}`);
+  }
+
+  const rows = [];
+  for (const line of lines.slice(1)) {
+    const [date, raw] = line.split(',');
+    const close = Number(raw);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(close) && close > 0) {
+      rows.push([date, close]);
+    }
+  }
+  return rows;
 }
 
 async function fromStooq() {
@@ -82,9 +126,10 @@ function normalise(rows) {
   for (const [date, close] of rows) byDate.set(date, close);
 
   const sorted = [...byDate.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
-  const cutoff = new Date(sorted.at(-1)[0]);
-  cutoff.setFullYear(cutoff.getFullYear() - Math.floor(YEARS));
-  cutoff.setMonth(cutoff.getMonth() - Math.round((YEARS % 1) * 12));
+  // UTC throughout, so the window does not shift with the runner's timezone.
+  const cutoff = new Date(`${sorted.at(-1)[0]}T00:00:00Z`);
+  cutoff.setUTCFullYear(cutoff.getUTCFullYear() - Math.floor(YEARS));
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - Math.round((YEARS % 1) * 12));
   const from = cutoff.toISOString().slice(0, 10);
 
   return sorted.filter(([date]) => date >= from);
