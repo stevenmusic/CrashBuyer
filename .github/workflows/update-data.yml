@@ -1,0 +1,40 @@
+name: Update S&P 500 data
+
+on:
+  schedule:
+    # 23:10 UTC on weekdays — after the 16:00 ET close in both EST and EDT.
+    - cron: '10 23 * * 1-5'
+  workflow_dispatch:
+
+# Serialise runs so two commits never race for the same branch.
+concurrency:
+  group: update-data-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Fetch latest daily closes
+        run: node scripts/fetch-sp500.mjs
+
+      - name: Commit if the series changed
+        run: |
+          if git diff --quiet -- data/sp500-daily.json; then
+            echo "No new data."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/sp500-daily.json
+          git commit -m "data: refresh S&P 500 daily closes through $(node -p "require('./data/sp500-daily.json').end")"
+          git push origin HEAD:${GITHUB_REF_NAME}

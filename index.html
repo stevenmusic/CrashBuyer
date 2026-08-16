@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Crash Buying Simulator · S&P 500</title>
+    <meta
+      name="description"
+      content="Rewind the S&P 500, buy the crashes with a fixed drawdown allocation ladder, and see what the portfolio would be worth today."
+    />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2316375c'/%3E%3Cpath d='M5 11l6 8 5-5 5 6 6-12' fill='none' stroke='%23f5c518' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="brand-mark">S&amp;P</span>
+      <h1>Crash Buying Simulator</h1>
+      <span class="brand-sub">S&amp;P 500</span>
+      <div class="topbar-right">
+        <span id="data-status" class="data-status" data-state="loading">loading data…</span>
+        <button id="reset-all" class="ghost-btn" type="button" title="Clear trades and restore defaults">
+          Reset
+        </button>
+      </div>
+    </header>
+
+    <p id="data-error" class="data-error" hidden></p>
+
+    <main class="layout" id="layout" aria-busy="true">
+      <!-- ---------------------------------------------------------------- -->
+      <div class="col col-left">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Current Market</h2>
+            <span class="panel-note">auto-updates by Day Pointer</span>
+          </div>
+          <div class="panel-body">
+            <div class="kv">
+              <span class="kv-label">Day Pointer</span>
+              <span class="stepper">
+                <button id="day-prev" class="step-btn" type="button" aria-label="Previous day">&#9664;</button>
+                <input
+                  id="day-input"
+                  class="step-input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  inputmode="numeric"
+                  aria-label="Day pointer"
+                />
+                <button id="day-next" class="step-btn" type="button" aria-label="Next day">&#9654;</button>
+                <span class="step-total">/ <b id="day-total">—</b></span>
+              </span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">Current Date</span>
+              <span id="cur-date" class="kv-value">—</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">Current Price</span>
+              <span id="cur-price" class="kv-value">—</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">Current Drawdown</span>
+              <span id="cur-dd" class="kv-value">—</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">Peak To Date</span>
+              <span id="cur-peak" class="kv-value">—</span>
+            </div>
+
+            <div class="meter">
+              <div class="meter-bar"><span id="meter-marker" class="meter-marker"></span></div>
+              <div class="meter-ticks">
+                <span style="left: 25%">&minus;10%</span>
+                <span style="left: 37.5%">&minus;15%</span>
+                <span style="left: 50%">&minus;20%</span>
+                <span style="left: 62.5%">&minus;25%</span>
+                <span style="left: 75%">&minus;30%</span>
+              </div>
+            </div>
+
+            <div id="presets" class="presets"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Portfolio</h2></div>
+          <div class="panel-body">
+            <div class="kv">
+              <span class="kv-label">Starting Cash</span>
+              <input id="starting-cash" class="cash-input" type="number" min="0" step="1000" inputmode="numeric" />
+            </div>
+            <div class="kv">
+              <span class="kv-label">Cash Balance</span>
+              <span id="pf-cash" class="kv-value">—</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">Units Held</span>
+              <span id="pf-units" class="kv-value">—</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">Market Value</span>
+              <span id="pf-mv" class="kv-value">—</span>
+            </div>
+            <div class="kv kv-total">
+              <span class="kv-label">Total Equity</span>
+              <span id="pf-equity" class="kv-value">—</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">P&amp;L</span>
+              <span id="pf-pnl" class="kv-value">—</span>
+            </div>
+            <div class="kv">
+              <span class="kv-label">Return %</span>
+              <span id="pf-ret" class="kv-value">—</span>
+            </div>
+            <p id="pf-pending" class="pf-pending" hidden></p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Allocation Guide</h2>
+            <span class="panel-note">% of starting cash</span>
+          </div>
+          <div class="panel-body panel-body-flush">
+            <table class="grid alloc">
+              <thead>
+                <tr>
+                  <th>Drawdown</th>
+                  <th class="num">Trigger Price</th>
+                  <th class="num">% Invest</th>
+                  <th class="num">Amount</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="alloc-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <div class="col col-right">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>S&amp;P 500 · Historical Price</h2>
+            <div id="chart-legend" class="legend">
+              <button class="legend-item" data-series="price" aria-pressed="true">
+                <i class="swatch swatch-price"></i>Price
+              </button>
+              <button class="legend-item" data-series="peak" aria-pressed="true">
+                <i class="swatch swatch-peak"></i>Peak
+              </button>
+              <button class="legend-item" data-series="buy" aria-pressed="true">
+                <i class="swatch swatch-buy"></i>BUY
+              </button>
+              <button class="legend-item" data-series="sell" aria-pressed="true">
+                <i class="swatch swatch-sell"></i>SELL
+              </button>
+            </div>
+          </div>
+          <div class="panel-body panel-body-flush">
+            <div id="chart-wrap" class="chart-wrap">
+              <canvas id="chart" role="img" aria-label="S&P 500 historical price with drawdown episodes"></canvas>
+              <div id="chart-tip" class="chart-tip" hidden></div>
+            </div>
+            <p class="chart-hint">Click or drag on the chart to move the Day Pointer.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Trade Input</h2></div>
+          <div class="panel-body">
+            <div class="trade-row">
+              <div class="field">
+                <label>Action</label>
+                <div class="toggle">
+                  <button id="act-buy" class="toggle-btn is-buy is-active" type="button" aria-pressed="true">Buy</button>
+                  <button id="act-sell" class="toggle-btn is-sell" type="button" aria-pressed="false">Sell</button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="amount-input">Amount ($)</label>
+                <input id="amount-input" class="text-input num" type="number" min="0" step="100" inputmode="decimal" value="0" />
+              </div>
+              <div class="field">
+                <label for="units-output">Units (auto)</label>
+                <input id="units-output" class="text-input num is-readonly" type="text" value="0.0000" readonly tabindex="-1" />
+              </div>
+              <div class="field field-actions">
+                <button id="suggest-btn" class="ghost-btn tall" type="button">Suggest</button>
+                <button id="execute-btn" class="primary-btn" type="button">Execute Trade</button>
+              </div>
+            </div>
+
+            <p id="trade-msg" class="trade-msg" hidden></p>
+
+            <div class="preview">
+              <div class="preview-head">
+                <span>Trade Preview</span>
+                <span class="preview-note">mirrors one row of the transaction log</span>
+              </div>
+              <table class="grid preview-grid">
+                <thead>
+                  <tr>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th class="num">Price</th>
+                    <th>Action</th>
+                    <th class="num">Units</th>
+                    <th class="num">Amount</th>
+                    <th class="num">Cash After</th>
+                    <th class="num">Units After</th>
+                    <th class="num">Equity After</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr id="preview-row">
+                    <td colspan="9" class="empty">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Transaction Log</h2>
+            <span id="log-count" class="panel-note">0 trades logged</span>
+          </div>
+          <div class="panel-body panel-body-flush">
+            <div class="table-scroll">
+              <table class="grid log">
+                <thead>
+                  <tr>
+                    <th class="num">#</th>
+                    <th class="num">Day</th>
+                    <th>Date</th>
+                    <th class="num">Price</th>
+                    <th>Action</th>
+                    <th class="num">Units</th>
+                    <th class="num">Amount</th>
+                    <th class="num">Cash After</th>
+                    <th class="num">Units After</th>
+                    <th class="num">Equity After</th>
+                    <th>Notes</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="log-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span
+        >Educational simulation only — not investment advice. Index prices exclude dividends, fees and
+        taxes.</span
+      >
+      <span id="data-meta" class="data-meta"></span>
+    </footer>
+
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>
