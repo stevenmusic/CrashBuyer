@@ -24,7 +24,7 @@ import {
 } from './format.js';
 
 const STORE_KEY = 'crashbuyer.v1';
-const DEFAULT_CASH = 200000;
+const DEFAULT_LADDER_BASE = 200000;
 
 /** Every 10% of drawdown raises an alert, if alerts are switched on. */
 const ALERT_STEP = 10;
@@ -78,14 +78,13 @@ const dom = {
   alertsToggle: el('alerts-toggle'),
   alertsHint: el('alerts-hint'),
 
-  startingCash: el('starting-cash'),
+  ladderBase: el('ladder-base'),
   pfInvested: el('pf-invested'),
   pfWithdrawnRow: el('pf-withdrawn-row'),
   pfWithdrawn: el('pf-withdrawn'),
-  pfCash: el('pf-cash'),
   pfUnits: el('pf-units'),
+  pfAvg: el('pf-avg'),
   pfMv: el('pf-mv'),
-  pfEquity: el('pf-equity'),
   pfPnl: el('pf-pnl'),
   pfRet: el('pf-ret'),
   pfPending: el('pf-pending'),
@@ -97,6 +96,7 @@ const dom = {
   chartTip: el('chart-tip'),
   legend: el('chart-legend'),
   logToggle: el('log-toggle'),
+  zoomReset: el('zoom-reset'),
 
   actBuy: el('act-buy'),
   actSell: el('act-sell'),
@@ -146,7 +146,9 @@ let lastMessage = null;
 
 const state = {
   day: 1,
-  startingCash: DEFAULT_CASH,
+  // Only scales the allocation ladder's suggested amounts. Nothing the
+  // portfolio reports depends on it — those come from the trades themselves.
+  ladderBase: DEFAULT_LADDER_BASE,
   action: 'BUY',
   trades: [],
   visible: { price: true, peak: true, buy: true, sell: true },
@@ -163,7 +165,7 @@ function save() {
         // The series is a rolling window, so old bars eventually drop off the
         // front and day numbers shift. The date is the stable anchor.
         dayDate: series.dates[state.day - 1],
-        startingCash: state.startingCash,
+        ladderBase: state.ladderBase,
         trades: state.trades,
         visible: state.visible,
         logScale: state.logScale,
@@ -187,9 +189,9 @@ function readSaved() {
 function restore(saved) {
   if (!saved) return;
 
-  if (Number.isFinite(saved.startingCash) && saved.startingCash >= 0) {
-    state.startingCash = saved.startingCash;
-  }
+  // `startingCash` is the pre-rename key from when this doubled as a budget.
+  const base = saved.ladderBase ?? saved.startingCash;
+  if (Number.isFinite(base) && base >= 0) state.ladderBase = base;
   if (Array.isArray(saved.trades)) {
     // Re-anchor by date: the series grows daily, so a stored day number would
     // silently point at the wrong bar once new data lands.
@@ -221,14 +223,11 @@ function market() {
   return { i, date: series.dates[i], currentPrice, peak, drawdown: currentPrice / peak - 1 };
 }
 
-const ledger = () => buildLedger(state.trades, state.startingCash);
+const ledger = () => buildLedger(state.trades);
 
 /** Renders a structured ledger error in the active language. */
 function describeError(error) {
-  if (!error) return '';
-  return error.kind === 'overdraw'
-    ? t('msg.overdraw', error.day, error.shortfall.toFixed(2))
-    : t('msg.oversell', error.day);
+  return error ? t('msg.oversell', error.day) : '';
 }
 
 /* ---------------------------------------------------------------- alerts */
@@ -370,7 +369,7 @@ function execute() {
     return;
   }
 
-  const candidate = buildLedger([...state.trades, draft], state.startingCash);
+  const candidate = buildLedger([...state.trades, draft]);
   if (candidate.error) {
     messageFrom(() => describeError(candidate.error), 'error');
     return;
@@ -392,7 +391,7 @@ function execute() {
 function suggest() {
   const { currentPrice, peak, drawdown } = market();
   const { rows } = ledger();
-  const pf = portfolioAt(rows, state.startingCash, state.day, currentPrice);
+  const pf = portfolioAt(rows, state.day, currentPrice);
 
   if (state.action === 'SELL') {
     if (pf.units <= 0) {
@@ -405,23 +404,17 @@ function suggest() {
     return;
   }
 
-  const armed = allocationRows(peak, state.startingCash, drawdown).filter((r) => r.armed);
+  const armed = allocationRows(peak, state.ladderBase, drawdown).filter((r) => r.armed);
   if (!armed.length) {
     message('msg.noRung', 'error', () => [percent(drawdown)]);
     return;
   }
-  if (pf.cash <= 0) {
-    message('msg.noCash');
-    return;
-  }
 
   const deepest = armed[armed.length - 1];
-  const amount = Math.min(deepest.amount, pf.cash);
-  dom.amountInput.value = String(Math.round(amount));
+  dom.amountInput.value = String(Math.round(deepest.amount));
   message('msg.suggestBuy', 'ok', () => [
     (deepest.drawdown * 100).toFixed(0),
     (deepest.invest * 100).toFixed(0),
-    amount < deepest.amount,
   ]);
   render();
 }
@@ -436,9 +429,9 @@ function removeTrade(id) {
 function resetAll() {
   if (!confirm(t('confirm.reset'))) return;
   state.trades = [];
-  state.startingCash = DEFAULT_CASH;
+  state.ladderBase = DEFAULT_LADDER_BASE;
   state.day = series.count;
-  dom.startingCash.value = String(DEFAULT_CASH);
+  dom.ladderBase.value = String(DEFAULT_LADDER_BASE);
   dom.amountInput.value = '0';
   message(null);
   save();
@@ -486,10 +479,9 @@ function renderPortfolio(pf) {
   dom.pfInvested.textContent = money(pf.invested);
   dom.pfWithdrawnRow.hidden = pf.withdrawn <= 0;
   dom.pfWithdrawn.textContent = money(pf.withdrawn);
-  dom.pfCash.textContent = money(pf.cash);
   dom.pfUnits.textContent = fmtUnits(pf.units);
+  dom.pfAvg.textContent = pf.units > 0 ? fmtPrice(pf.invested / pf.units) : '—';
   dom.pfMv.textContent = money(pf.marketValue);
-  dom.pfEquity.textContent = money(pf.equity);
 
   dom.pfPnl.textContent = moneySigned(pf.pnl);
   dom.pfPnl.className = `kv-value ${pf.pnl >= 0 ? 'is-gain' : 'is-loss'}`;
@@ -501,7 +493,7 @@ function renderPortfolio(pf) {
 }
 
 function renderAllocation({ peak, drawdown }) {
-  const rows = allocationRows(peak, state.startingCash, drawdown);
+  const rows = allocationRows(peak, state.ladderBase, drawdown);
   dom.allocBody.replaceChildren(
     ...rows.map((row) => {
       const tr = document.createElement('tr');
@@ -546,7 +538,7 @@ function renderPreview({ date, currentPrice }) {
     return;
   }
 
-  const candidate = buildLedger([...state.trades, draft], state.startingCash);
+  const candidate = buildLedger([...state.trades, draft]);
   const row = candidate.rows.find((r) => r.id === draft.id);
   const tag = draft.action === 'BUY' ? 'tag-buy' : 'tag-sell';
   const label = t(draft.action === 'BUY' ? 'trade.buy' : 'trade.sell');
@@ -558,9 +550,9 @@ function renderPreview({ date, currentPrice }) {
     cell(t('col.action'), `<span class="tag ${tag}">${label}</span>`) +
     cell(t('col.units'), fmtUnits(row.units)) +
     cell(t('col.amount'), money(row.amount)) +
-    cell(t('col.cashAfter'), money(row.cashAfter)) +
     cell(t('col.unitsAfter'), fmtUnits(row.unitsAfter)) +
-    cell(t('col.equityAfter'), money(row.equityAfter));
+    cell(t('col.investedAfter'), money(row.investedAfter)) +
+    cell(t('col.valueAfter'), money(row.valueAfter));
 
   dom.executeBtn.disabled = Boolean(candidate.error);
   if (candidate.error) messageFrom(() => describeError(candidate.error), 'error');
@@ -587,9 +579,9 @@ function renderLog(rows) {
         `<td><span class="tag ${row.action === 'BUY' ? 'tag-buy' : 'tag-sell'}">${label}</span></td>` +
         `<td class="num">${fmtUnits(row.units)}</td>` +
         `<td class="num">${money(row.amount)}</td>` +
-        `<td class="num">${money(row.cashAfter)}</td>` +
         `<td class="num">${fmtUnits(row.unitsAfter)}</td>` +
-        `<td class="num">${money(row.equityAfter)}</td>` +
+        `<td class="num">${money(row.investedAfter)}</td>` +
+        `<td class="num">${money(row.valueAfter)}</td>` +
         '<td></td><td class="num"></td>';
 
       const note = document.createElement('input');
@@ -639,7 +631,7 @@ function renderPerformance(rows, pf) {
   // would otherwise include cash the benchmarks never had.
   const base = pf.invested;
   const you = pf.marketValue + pf.withdrawn;
-  const curve = equityCurve(rows, state.startingCash, series.closes, from, to);
+  const curve = equityCurve(rows, series.closes, from, to);
   const { lump, dca } = benchmarks(series.dates, series.closes, from, to, base);
   const gain = (value) => percentSigned(value / base - 1);
 
@@ -676,7 +668,7 @@ function render() {
   const { rows } = ledger();
 
   renderMarket(snapshot);
-  const pf = portfolioAt(rows, state.startingCash, state.day, snapshot.currentPrice);
+  const pf = portfolioAt(rows, state.day, snapshot.currentPrice);
   renderPortfolio(pf);
   renderPerformance(rows, pf);
   renderAllocation(snapshot);
@@ -727,20 +719,13 @@ function bindEvents() {
   dom.dayNext.addEventListener('click', () => stepDay(1));
   dom.dayInput.addEventListener('change', () => setDay(dom.dayInput.value));
 
-  dom.startingCash.addEventListener('change', () => {
-    const value = Number(dom.startingCash.value);
+  dom.ladderBase.addEventListener('change', () => {
+    const value = Number(dom.ladderBase.value);
     if (!Number.isFinite(value) || value < 0) {
-      dom.startingCash.value = String(state.startingCash);
+      dom.ladderBase.value = String(state.ladderBase);
       return;
     }
-    const check = buildLedger(state.trades, value);
-    if (check.error) {
-      dom.startingCash.value = String(state.startingCash);
-      messageFrom(() => t('msg.cashTooLow', money(value), describeError(check.error)), 'error');
-      return;
-    }
-    state.startingCash = value;
-    message(null);
+    state.ladderBase = value;
     save();
     render();
   });
@@ -757,6 +742,8 @@ function bindEvents() {
     const button = event.target.closest('.lang-btn');
     if (button) switchLang(button.dataset.lang);
   });
+
+  dom.zoomReset.addEventListener('click', () => chart.resetView());
 
   dom.logToggle.addEventListener('click', () => {
     state.logScale = !state.logScale;
@@ -879,7 +866,7 @@ async function main() {
   state.day = series.count;
 
   restore(saved);
-  dom.startingCash.value = String(state.startingCash);
+  dom.ladderBase.value = String(state.ladderBase);
   dom.alertsToggle.checked = state.alerts;
   dom.logToggle.setAttribute('aria-pressed', String(state.logScale));
   for (const button of dom.legend.querySelectorAll('[data-series]')) {
@@ -888,7 +875,12 @@ async function main() {
   alertedLevel = bandAt(market().drawdown);
 
   applyInstrumentLabels();
-  chart = createChart(dom.chart, dom.chartTip, { onScrub: (day) => setDay(day) });
+  chart = createChart(dom.chart, dom.chartTip, {
+    onScrub: (day) => setDay(day),
+    onZoom: (zoomed) => {
+      dom.zoomReset.hidden = !zoomed;
+    },
+  });
   buildPresets();
   bindEvents();
   render();

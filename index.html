@@ -115,13 +115,16 @@
             <button id="log-toggle" class="legend-item legend-log" aria-pressed="true">
               <span data-i18n="legend.log">LOG</span>
             </button>
+            <button id="zoom-reset" class="legend-item legend-reset" type="button" hidden>
+              <span data-i18n="legend.resetZoom">Reset zoom</span>
+            </button>
           </div>
         </div>
         <div id="chart-wrap" class="chart-wrap">
           <canvas id="chart" role="img" data-i18n-aria="chart.aria"></canvas>
           <div id="chart-tip" class="chart-tip" hidden></div>
         </div>
-        <p class="board-foot" data-i18n="chart.hint">Click or drag on the chart to move the Day Pointer.</p>
+        <p class="board-foot" data-i18n="chart.hint">Click or drag to move the Day Pointer · pinch or scroll to zoom · double-click to reset.</p>
       </section>
 
       <!-- ========================================================== workbench -->
@@ -129,7 +132,10 @@
         <section class="board">
           <div class="board-head">
             <h2 data-i18n="panel.allocation">Allocation Guide</h2>
-            <span class="board-note" data-i18n="panel.allocationNote">% of budget</span>
+            <label class="base-field">
+              <span data-i18n="alloc.base" data-i18n-title="alloc.baseHint">Ladder base</span>
+              <input id="ladder-base" type="number" min="0" step="1000" inputmode="numeric" />
+            </label>
           </div>
           <table class="grid alloc">
             <colgroup>
@@ -191,12 +197,8 @@
         <section class="board">
           <div class="board-head"><h2 data-i18n="panel.portfolio">Portfolio</h2></div>
           <div class="board-body">
-            <div class="kv kv-input">
-              <span class="kv-label" data-i18n="pf.startingCash" data-i18n-title="pf.startingCashHint">Cash Budget</span>
-              <input id="starting-cash" class="cash-input" type="number" min="0" step="1000" inputmode="numeric" />
-            </div>
             <div class="kv">
-              <span class="kv-label" data-i18n="pf.invested">Total Invested</span>
+              <span class="kv-label" data-i18n="pf.invested" data-i18n-title="pf.investedHint">Total Invested</span>
               <span id="pf-invested" class="kv-value">—</span>
             </div>
             <div class="kv" id="pf-withdrawn-row" hidden>
@@ -204,20 +206,16 @@
               <span id="pf-withdrawn" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label" data-i18n="pf.cashBalance">Cash Balance</span>
-              <span id="pf-cash" class="kv-value">—</span>
-            </div>
-            <div class="kv">
               <span class="kv-label" data-i18n="pf.unitsHeld">Units Held</span>
               <span id="pf-units" class="kv-value">—</span>
             </div>
             <div class="kv">
-              <span class="kv-label" data-i18n="pf.marketValue">Market Value</span>
-              <span id="pf-mv" class="kv-value">—</span>
+              <span class="kv-label" data-i18n="pf.avgCost">Average Cost</span>
+              <span id="pf-avg" class="kv-value">—</span>
             </div>
             <div class="kv kv-total">
-              <span class="kv-label" data-i18n="pf.totalEquity">Total Equity</span>
-              <span id="pf-equity" class="kv-value">—</span>
+              <span class="kv-label" data-i18n="pf.marketValue">Market Value</span>
+              <span id="pf-mv" class="kv-value">—</span>
             </div>
             <div class="kv">
               <span class="kv-label" data-i18n="pf.pnl">P&amp;L</span>
@@ -300,9 +298,9 @@
                 <th data-i18n="col.action">Action</th>
                 <th class="num" data-i18n="col.units">Units</th>
                 <th class="num" data-i18n="col.amount">Amount</th>
-                <th class="num" data-i18n="col.cashAfter">Cash After</th>
                 <th class="num" data-i18n="col.unitsAfter">Units After</th>
-                <th class="num" data-i18n="col.equityAfter">Equity After</th>
+                <th class="num" data-i18n="col.investedAfter">Invested After</th>
+                <th class="num" data-i18n="col.valueAfter">Value After</th>
                 <th data-i18n="col.notes">Notes</th>
                 <th></th>
               </tr>

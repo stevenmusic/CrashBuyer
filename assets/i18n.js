@@ -38,7 +38,7 @@ const STRINGS = {
     'panel.currentMarketNote': 'auto-updates by Day Pointer',
     'panel.portfolio': 'Portfolio',
     'panel.allocation': 'Allocation Guide',
-    'panel.allocationNote': '% of budget',
+    'panel.allocationNote': '% of base',
     'panel.chart': (name) => `${name} · Historical Price`,
     'panel.tradeInput': 'Trade Input',
     'panel.log': 'Transaction Log',
@@ -54,6 +54,12 @@ const STRINGS = {
     'pf.startingCash': 'Cash Budget',
     'pf.startingCashHint': 'Sets the allocation ladder amounts and caps how much you can deploy. Returns are measured on Total Invested, not on this.',
     'pf.invested': 'Total Invested',
+    'pf.investedHint': 'The sum of every buy up to the day pointer — the basis every return here is measured against.',
+    'pf.avgCost': 'Average Cost',
+    'alloc.base': 'Ladder base',
+    'alloc.baseHint': 'Only scales the amounts suggested below. Nothing in Portfolio or Performance depends on it.',
+    'col.investedAfter': 'Invested After',
+    'col.valueAfter': 'Value After',
     'pf.withdrawn': 'Total Sold',
     'pf.cashBalance': 'Cash Balance',
     'pf.unitsHeld': 'Units Held',
@@ -61,7 +67,7 @@ const STRINGS = {
     'pf.totalEquity': 'Total Equity',
     'pf.pnl': 'P&L',
     'pf.returnPct': 'Return %',
-    'pf.returnHint': 'P&L divided by Total Invested — the money actually committed, not the starting cash.',
+    'pf.returnHint': 'P&L divided by Total Invested — the money actually committed.',
     'pf.pending': (n) =>
       n === 1
         ? '1 logged trade happens after this date and is not counted yet.'
@@ -77,7 +83,8 @@ const STRINGS = {
     'legend.peak': 'Peak',
     'legend.buy': 'BUY',
     'legend.sell': 'SELL',
-    'chart.hint': 'Click or drag on the chart to move the Day Pointer.',
+    'chart.hint': 'Click or drag to move the Day Pointer · pinch or scroll to zoom · double-click to reset.',
+    'legend.resetZoom': 'Reset zoom',
     'chart.tip': (day, date, price, dd) =>
       `<b>Day ${day}</b> · ${date}<br />${price}<br />Drawdown ${dd}`,
     'chart.aria': 'Historical price with drawdown episodes',
@@ -118,8 +125,7 @@ const STRINGS = {
     'msg.noRung': (dd) =>
       `No allocation rung is armed at ${dd} — the first rung triggers at −10%.`,
     'msg.noCash': 'No cash left to deploy at this date.',
-    'msg.suggestBuy': (dd, pct, capped) =>
-      `Suggested: the −${dd}% rung — ${pct}% of budget${capped ? ', capped by remaining cash' : ''}.`,
+    'msg.suggestBuy': (dd, pct) => `Suggested: the −${dd}% rung — ${pct}% of the ladder base.`,
     'msg.loadedRung': (dd, amount, date) =>
       `Loaded the −${dd}% rung: ${amount}. Execute to log it at ${date}.`,
     'msg.cashTooLow': (amount, reason) =>
@@ -128,7 +134,7 @@ const STRINGS = {
       `Trade on day ${day} would overdraw cash by ${shortfall}.`,
     'msg.oversell': (day) => `Trade on day ${day} would sell more units than are held.`,
 
-    'confirm.reset': 'Clear all trades and restore the default budget?',
+    'confirm.reset': 'Clear all trades and restore the default ladder base?',
     'footer.disclaimer':
       'Educational simulation only — not investment advice. Index prices exclude dividends, fees and taxes.',
     'proxy.note': (symbol) =>
@@ -204,7 +210,7 @@ const STRINGS = {
     'panel.currentMarketNote': '隨日期指標自動更新',
     'panel.portfolio': '投資組合',
     'panel.allocation': '配置指南',
-    'panel.allocationNote': '佔資金預算比例',
+    'panel.allocationNote': '佔基準比例',
     'panel.chart': (name) => `${name} · 歷史走勢`,
     'panel.tradeInput': '交易輸入',
     'panel.log': '交易紀錄',
@@ -220,6 +226,12 @@ const STRINGS = {
     'pf.startingCash': '資金預算',
     'pf.startingCashHint': '決定配置指南的各檔金額，並限制最多能投入多少。報酬率是以「累計投入」為基準，與這個數字無關。',
     'pf.invested': '累計投入',
+    'pf.investedHint': '到目前日期為止所有買進的加總——本頁所有報酬率都以它為基準。',
+    'pf.avgCost': '平均成本',
+    'alloc.base': '階梯基準',
+    'alloc.baseHint': '只用來換算下方建議的金額。投資組合與績效的數字都跟它無關。',
+    'col.investedAfter': '交易後累計投入',
+    'col.valueAfter': '交易後持倉市值',
     'pf.withdrawn': '累計賣出',
     'pf.cashBalance': '現金餘額',
     'pf.unitsHeld': '持有單位',
@@ -227,7 +239,7 @@ const STRINGS = {
     'pf.totalEquity': '總資產',
     'pf.pnl': '損益',
     'pf.returnPct': '報酬率',
-    'pf.returnHint': '損益 ÷ 累計投入——以實際投入的金額為基準，而非起始資金。',
+    'pf.returnHint': '損益 ÷ 累計投入——以實際投入的金額為基準。',
     'pf.pending': (n) => `有 ${n} 筆已紀錄的交易發生在這個日期之後，尚未計入。`,
 
     'alloc.drawdown': '跌幅',
@@ -240,7 +252,8 @@ const STRINGS = {
     'legend.peak': '高點',
     'legend.buy': '買進',
     'legend.sell': '賣出',
-    'chart.hint': '在圖上點擊或拖曳即可移動日期指標。',
+    'chart.hint': '點擊或拖曳可移動日期指標 · 雙指縮放或滾輪可放大 · 雙擊還原。',
+    'legend.resetZoom': '還原縮放',
     'chart.tip': (day, date, price, dd) =>
       `<b>第 ${day} 天</b> · ${date}<br />${price}<br />跌幅 ${dd}`,
     'chart.aria': '歷史價格走勢與回檔區間',
@@ -280,15 +293,14 @@ const STRINGS = {
     'msg.suggestSell': (units) => `建議：賣出全部持倉（${units} 單位）。`,
     'msg.noRung': (dd) => `目前跌幅 ${dd}，尚未觸發任何配置檔位——第一檔在 −10% 觸發。`,
     'msg.noCash': '這個日期已經沒有現金可以投入。',
-    'msg.suggestBuy': (dd, pct, capped) =>
-      `建議：−${dd}% 檔位——資金預算的 ${pct}%${capped ? '，已受剩餘現金限制' : ''}。`,
+    'msg.suggestBuy': (dd, pct) => `建議：−${dd}% 檔位——階梯基準的 ${pct}%。`,
     'msg.loadedRung': (dd, amount, date) =>
       `已載入 −${dd}% 檔位：${amount}。按「執行交易」即可記錄在 ${date}。`,
     'msg.cashTooLow': (amount, reason) => `資金預算 ${amount} 不足以支應已紀錄的交易。${reason}`,
     'msg.overdraw': (day, shortfall) => `第 ${day} 天的交易會讓現金透支 ${shortfall}。`,
     'msg.oversell': (day) => `第 ${day} 天的交易會賣出超過持有的單位數。`,
 
-    'confirm.reset': '確定要清除所有交易並還原預設資金預算嗎？',
+    'confirm.reset': '確定要清除所有交易並還原預設階梯基準嗎？',
     'footer.disclaimer': '僅供教學模擬，非投資建議。指數價格不含股息、手續費與稅負。',
     'proxy.note': (symbol) =>
       `價格為 ${symbol}，即追蹤該指數的 ETF——大約是指數點位的十分之一。` +

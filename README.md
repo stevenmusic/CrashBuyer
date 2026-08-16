@@ -57,15 +57,17 @@ derives from it.
 - **Impossible sequences are rejected** rather than silently allowed. Every trade is
   replayed in date order; if any point overdraws cash or sells units that are not
   held, the trade is refused with the reason.
-- **Totals are summed for you.** Portfolio shows *Total Invested* (every buy up
-  to the pointer) and, once you sell, *Total Sold* — no adding up the log by hand.
-- **Returns are measured on what you actually invested**, not on the budget.
-  Dividing by the budget would credit the strategy for money that never left the
-  sidelines: laddering $160k of a $200k account into 2008 reads +752% on the
-  committed capital and only +602% against the whole account, for the same trades.
-- **Cash Budget is the one input, and you can leave it alone.** It sets the
-  ladder's dollar amounts (10% of it, 15% of it, …) and caps how much you can
-  deploy. It is not the basis of any return.
+- **Nothing has to be typed.** There is no cash account to configure: the
+  portfolio is the sum of the trades themselves — total invested, units, average
+  cost, market value, P&L and return. *Ladder base* sits in the Allocation Guide
+  header and only scales the amounts that panel suggests.
+- **Returns are measured on what was actually invested.** Dividing by a budget
+  would credit the strategy for money that never left the sidelines.
+- **The only impossible trade is selling units you do not hold.** Without a cash
+  account there is nothing to overdraw.
+- **The chart zooms.** Pinch on touch, scroll or trackpad-pinch on desktop,
+  double-click or the Reset zoom button to go back. The y axis rescales to the
+  visible window, so zooming actually magnifies the detail.
 - **State persists** in `localStorage`, re-anchored by date on load so a growing
   series does not shift trades onto the wrong bar.
 

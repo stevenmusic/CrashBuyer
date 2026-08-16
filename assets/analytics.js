@@ -11,29 +11,30 @@ const MS_PER_YEAR = 365.2425 * 86400000;
 const DCA_INSTALMENTS = 12;
 
 /**
- * Portfolio value at every bar in [from, to], replaying the ledger as it goes.
- * Trades are already in date order, so one pass suffices.
+ * What the committed money is worth at every bar in [from, to] — the position
+ * plus anything already sold — replaying the ledger as it goes. Trades are
+ * already in date order, so one pass suffices.
  */
-export function equityCurve(rows, startingCash, closes, from, to) {
+export function equityCurve(rows, closes, from, to) {
   const curve = new Array(to - from + 1);
-  let cash = startingCash;
   let units = 0;
+  let realised = 0;
   let next = 0;
 
   // Apply anything that happened before the window opens.
   while (next < rows.length && rows[next].day - 1 < from) {
-    cash = rows[next].cashAfter;
     units = rows[next].unitsAfter;
+    realised = rows[next].withdrawnAfter;
     next++;
   }
 
   for (let i = from; i <= to; i++) {
     while (next < rows.length && rows[next].day - 1 === i) {
-      cash = rows[next].cashAfter;
       units = rows[next].unitsAfter;
+      realised = rows[next].withdrawnAfter;
       next++;
     }
-    curve[i - from] = { cash, units, equity: cash + units * closes[i] };
+    curve[i - from] = { units, equity: units * closes[i] + realised };
   }
   return curve;
 }
@@ -53,6 +54,9 @@ const yearsBetween = (a, b) => (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T
  * Volatility is annualised from the series' own bar frequency rather than an
  * assumed 252, because the history mixes monthly bars with daily ones. Sharpe
  * assumes a zero risk-free rate — stated rather than silently folded in.
+ *
+ * Drawdown and volatility come from the position's own path, so a partly-built
+ * position shows the swings its holder actually lived through.
  */
 export function stats(curve, dates, from, to, base, final) {
   const years = yearsBetween(dates[from], dates[to]);
@@ -109,14 +113,14 @@ function barAfterMonths(dates, from, months) {
 /**
  * What the same cash would be worth at `to` under two passive alternatives:
  *
- *   lump  — the whole account invested on the first trade's bar.
+ *   lump  — the whole amount invested on the first trade's bar.
  *   dca   — twelve equal monthly instalments starting that same bar; anything
- *           not yet invested by `to` is still sitting in cash and counted.
+ *           not yet invested by `to` is still held back and counted at face.
  */
-export function benchmarks(dates, closes, from, to, startingCash) {
-  const lump = (startingCash / closes[from]) * closes[to];
+export function benchmarks(dates, closes, from, to, committed) {
+  const lump = (committed / closes[from]) * closes[to];
 
-  const slice = startingCash / DCA_INSTALMENTS;
+  const slice = committed / DCA_INSTALMENTS;
   let units = 0;
   let spent = 0;
   for (let k = 0; k < DCA_INSTALMENTS; k++) {
@@ -125,7 +129,7 @@ export function benchmarks(dates, closes, from, to, startingCash) {
     units += slice / closes[at];
     spent += slice;
   }
-  const dca = units * closes[to] + (startingCash - spent);
+  const dca = units * closes[to] + (committed - spent);
 
   return { lump, dca };
 }

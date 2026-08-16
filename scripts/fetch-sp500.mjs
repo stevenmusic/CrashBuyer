@@ -248,68 +248,99 @@ const pack = (rows, extra) => ({
 
 async function main() {
   const failures = [];
+  const note = (name, err) => {
+    failures.push(`${name}: ${err.message}`);
+    console.warn(`[fetch-sp500] ${name} failed — ${err.message}`);
+  };
 
-  // Preferred path: the full index history, monthly since 1871, with a daily
-  // tail for the last decade when a FRED key is available.
-  let monthly = [];
-  try {
-    monthly = normalise(await fromShiller());
-    console.log(`[fetch-sp500] shiller: ${monthly.length} monthly bars from ${monthly[0][0]}`);
-  } catch (err) {
-    failures.push(`shiller: ${err.message}`);
-    console.warn(`[fetch-sp500] shiller failed — ${err.message}`);
-  }
-
+  // Daily resolution is the priority: it is what makes a crash legible, and
+  // both daily sources are reachable from CI without any external service.
+  // FRED gives real index levels but needs a free key; stockanalysis needs no
+  // key but quotes the SPY ETF, roughly a tenth of the index level.
   let daily = [];
   if (process.env.FRED_API_KEY) {
     try {
       daily = normalise(await fromFred());
       console.log(`[fetch-sp500] fred: ${daily.length} daily bars from ${daily[0][0]}`);
     } catch (err) {
-      failures.push(`fred: ${err.message}`);
-      console.warn(`[fetch-sp500] fred failed — ${err.message}`);
+      note('fred', err);
     }
   } else {
-    console.log('[fetch-sp500] fred skipped — no FRED_API_KEY, monthly resolution only');
+    console.log('[fetch-sp500] fred skipped — no FRED_API_KEY');
   }
 
-  if (monthly.length >= 500) {
+  if (daily.length >= 500) {
+    // Real index levels, so Shiller's monthly history splices on in front of it
+    // without any rescaling — free extra decades for anyone who wants them.
+    let monthly = [];
+    try {
+      monthly = normalise(await fromShiller());
+    } catch (err) {
+      note('shiller', err);
+    }
     const { rows, dailyFrom } = splice(monthly, daily);
     await write(
       pack(rows, {
         symbol: '^GSPC',
         name: 'S&P 500',
         proxy: false,
-        source: dailyFrom ? 'shiller + fred' : 'shiller',
-        // Bars before this date are monthly averages of daily closes, so the
-        // UI can say so rather than implying uniform daily resolution.
+        source: monthly.length ? 'shiller + fred' : 'fred',
         dailyFrom,
-        monthlyNote: true,
+        monthlyNote: monthly.length > 0,
       }),
-      dailyFrom ? `monthly to ${dailyFrom}, daily after` : 'monthly'
+      monthly.length ? `monthly to ${dailyFrom}, daily after` : 'daily'
     );
     return;
   }
 
-  // Nothing long-history available — fall back to whatever recent series works.
-  for (const source of FALLBACKS) {
-    let rows;
+  // No key: the ETF still gives ten years of genuine daily bars.
+  try {
+    const rows = normalise(await fromStockAnalysis());
+    if (rows.length >= 500) {
+      await write(
+        pack(rows, { ...META.stockanalysis, source: 'stockanalysis', dailyFrom: rows[0][0], monthlyNote: false }),
+        'daily (ETF proxy)'
+      );
+      return;
+    }
+    failures.push(`stockanalysis: only ${rows.length} rows`);
+  } catch (err) {
+    note('stockanalysis', err);
+  }
+
+  // Last resort: monthly history beats no history.
+  try {
+    const monthly = normalise(await fromShiller());
+    if (monthly.length >= 500) {
+      await write(
+        pack(monthly, {
+          symbol: '^GSPC',
+          name: 'S&P 500',
+          proxy: false,
+          source: 'shiller',
+          dailyFrom: null,
+          monthlyNote: true,
+        }),
+        'monthly only'
+      );
+      return;
+    }
+  } catch (err) {
+    note('shiller', err);
+  }
+
+  for (const source of [{ name: 'stooq', fetch: fromStooq }, { name: 'yahoo', fetch: fromYahoo }]) {
     try {
-      rows = normalise(await source.fetch());
+      const rows = normalise(await source.fetch());
+      if (rows.length < 500) continue;
+      await write(
+        pack(rows, { ...META[source.name], source: source.name, dailyFrom: rows[0][0], monthlyNote: false }),
+        source.name
+      );
+      return;
     } catch (err) {
-      failures.push(`${source.name}: ${err.message}`);
-      console.warn(`[fetch-sp500] ${source.name} failed — ${err.message}`);
-      continue;
+      note(source.name, err);
     }
-    if (rows.length < 500) {
-      failures.push(`${source.name}: only ${rows.length} rows`);
-      continue;
-    }
-    await write(
-      pack(rows, { ...META[source.name], source: source.name, dailyFrom: rows[0][0] }),
-      source.name
-    );
-    return;
   }
 
   console.error('[fetch-sp500] every source failed:\n  ' + failures.join('\n  '));

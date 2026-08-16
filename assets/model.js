@@ -3,8 +3,8 @@
 
 /**
  * Fixed drawdown ladder. Each rung says: once the index is this far below its
- * running peak, put this share of *starting cash* to work. The five rungs add
- * up to 100%, so a full crash sequence deploys the whole account.
+ * running peak, put this share of the ladder base to work. The five rungs add
+ * up to 100%, so a full crash sequence deploys the whole planned amount.
  */
 export const LADDER = [
   { drawdown: 0.1, invest: 0.1 },
@@ -84,39 +84,41 @@ export function indexOnOrAfter(dates, iso) {
 
 /**
  * Replays every trade in chronological order and returns one row per trade with
- * the balances *after* it. `error` is set when the sequence is impossible
- * (spending cash that is not there, or selling units that are not held), which
- * is how a proposed trade gets rejected before it is committed.
+ * the running position after it.
+ *
+ * There is no cash account: the tool records what was actually bought and sold,
+ * so the only impossible sequence is selling units that are not held. `error` is
+ * structured rather than a sentence so the UI can phrase it in either language.
  */
-export function buildLedger(trades, startingCash) {
+export function buildLedger(trades) {
   const ordered = [...trades].sort((a, b) => a.day - b.day || a.seq - b.seq);
   const rows = [];
-  let cash = startingCash;
   let held = 0;
+  let invested = 0;
+  let withdrawn = 0;
   let error = null;
 
   for (const trade of ordered) {
-    const signedAmount = trade.action === 'BUY' ? -trade.amount : trade.amount;
-    const signedUnits = trade.action === 'BUY' ? trade.units : -trade.units;
-
-    cash += signedAmount;
-    held += signedUnits;
-
-    // Tolerate float dust before calling a sequence impossible. The error is
-    // structured rather than a sentence so the UI can render it in either
-    // language.
-    if (cash < -0.005 && !error) {
-      error = { kind: 'overdraw', day: trade.day, shortfall: Math.abs(cash) };
+    if (trade.action === 'BUY') {
+      held += trade.units;
+      invested += trade.amount;
+    } else {
+      held -= trade.units;
+      withdrawn += trade.amount;
     }
+
+    // Tolerate float dust before calling a sequence impossible.
     if (held < -1e-9 && !error) {
       error = { kind: 'oversell', day: trade.day };
     }
 
     rows.push({
       ...trade,
-      cashAfter: cash,
       unitsAfter: held,
-      equityAfter: cash + held * trade.price,
+      investedAfter: invested,
+      withdrawnAfter: withdrawn,
+      // What the position was worth at that trade's own price.
+      valueAfter: held * trade.price,
     });
   }
 
@@ -127,38 +129,27 @@ export function buildLedger(trades, startingCash) {
  * Portfolio as of the day pointer. Only trades that have already happened count
  * — rewinding the pointer to 2018 must not show units bought in 2020.
  */
-export function portfolioAt(ledgerRows, startingCash, day, currentPrice) {
-  let cash = startingCash;
+export function portfolioAt(ledgerRows, day, currentPrice) {
   let held = 0;
-  let applied = 0;
-  // Running totals so the panel can show what was actually committed without
-  // anyone having to add up the transaction log by hand.
   let invested = 0;
   let withdrawn = 0;
+  let applied = 0;
 
   for (const row of ledgerRows) {
     if (row.day > day) break;
-    cash = row.cashAfter;
     held = row.unitsAfter;
-    if (row.action === 'BUY') invested += row.amount;
-    else withdrawn += row.amount;
+    invested = row.investedAfter;
+    withdrawn = row.withdrawnAfter;
     applied++;
   }
 
   const marketValue = held * currentPrice;
-  const equity = cash + marketValue;
-
-  // P&L is the same number either way — equity − startingCash expands to
-  // marketValue + withdrawn − invested — but the *rate* is only meaningful
-  // against the money actually committed. Dividing by starting cash silently
-  // credits the strategy for however much never left the sidelines.
+  // Everything the committed money turned into, minus what went in.
   const pnl = marketValue + withdrawn - invested;
 
   return {
-    cash,
     units: held,
     marketValue,
-    equity,
     invested,
     withdrawn,
     pnl,
@@ -168,12 +159,12 @@ export function portfolioAt(ledgerRows, startingCash, day, currentPrice) {
   };
 }
 
-/** Ladder rows resolved against the current peak, starting cash and drawdown. */
-export function allocationRows(peak, startingCash, drawdown) {
+/** Ladder rows resolved against the current peak, ladder base and drawdown. */
+export function allocationRows(peak, ladderBase, drawdown) {
   return LADDER.map((rung) => ({
     ...rung,
     triggerPrice: peak * (1 - rung.drawdown),
-    amount: startingCash * rung.invest,
+    amount: ladderBase * rung.invest,
     // `armed` = the index is already this far down, so the rung is actionable.
     armed: -drawdown >= rung.drawdown - 1e-9,
   }));

@@ -22,11 +22,49 @@ const COLORS = {
   ground: '#fbfaf9',
 };
 
-export function createChart(canvas, tipEl, { onScrub }) {
+/** Never zoom in past this many bars — beyond it the line is just dots. */
+const MIN_VISIBLE = 8;
+
+export function createChart(canvas, tipEl, { onScrub, onZoom }) {
   const ctx = canvas.getContext('2d');
   let state = null;
   let plot = null; // { x(i), y(v), w, h, n }
   let hoverIndex = null;
+  /** Visible index window. Null until the first render sizes it to the data. */
+  let view = null;
+
+  function resetView() {
+    view = state ? { start: 0, end: state.closes.length - 1 } : null;
+    onZoom?.(false);
+  }
+
+  function clampView(start, end) {
+    const n = state.closes.length;
+    let a = Math.round(start);
+    let b = Math.round(end);
+    if (b - a + 1 < MIN_VISIBLE) {
+      const mid = (a + b) / 2;
+      a = Math.round(mid - MIN_VISIBLE / 2);
+      b = a + MIN_VISIBLE - 1;
+    }
+    if (a < 0) { b -= a; a = 0; }
+    if (b > n - 1) { a -= b - (n - 1); b = n - 1; }
+    view = { start: Math.max(0, a), end: Math.min(n - 1, b) };
+    onZoom?.(view.start > 0 || view.end < n - 1);
+  }
+
+  /**
+   * Scales the window by `factor` about `anchor` (0..1 across the current view),
+   * so the bar under the cursor or the pinch midpoint stays put.
+   */
+  function zoomBy(factor, anchor) {
+    if (!view) return;
+    const span = view.end - view.start;
+    const focus = view.start + span * anchor;
+    const next = span / factor;
+    clampView(focus - next * anchor, focus + next * (1 - anchor));
+    render();
+  }
 
   function layout() {
     const rect = canvas.getBoundingClientRect();
@@ -56,13 +94,18 @@ export function createChart(canvas, tipEl, { onScrub }) {
   }
 
   function buildScales(w, h) {
-    const { closes, dates } = state;
+    const { closes, dates, peaks, visible } = state;
     const n = closes.length;
+    if (!view || view.end > n - 1) resetView();
+
+    // Range over the *visible* slice, so zooming in actually magnifies the
+    // wiggles instead of leaving them squashed against the full-history scale.
     let min = Infinity;
     let max = -Infinity;
-    for (const c of closes) {
-      if (c < min) min = c;
-      if (c > max) max = c;
+    for (let i = view.start; i <= view.end; i++) {
+      if (closes[i] < min) min = closes[i];
+      if (closes[i] > max) max = closes[i];
+      if (visible.peak && peaks[i] > max) max = peaks[i];
     }
     if (min === max) {
       min -= 1;
@@ -70,8 +113,8 @@ export function createChart(canvas, tipEl, { onScrub }) {
     }
 
     const times = timesFor(dates);
-    const tMin = times[0];
-    const tMax = times[n - 1];
+    const tMin = times[view.start];
+    const tMax = times[view.end];
     const tSpan = tMax - tMin || 1;
 
     const innerW = Math.max(1, w - PAD.left - PAD.right);
@@ -100,10 +143,11 @@ export function createChart(canvas, tipEl, { onScrub }) {
       xAtTime: (t) => PAD.left + ((t - tMin) / tSpan) * innerW,
       y: (v) => PAD.top + innerH - (((log ? Math.log(v) : v) - lo) / span) * innerH,
       ticks: log ? logTicks(min, max) : linearTicks(min, max),
+      view,
       indexAt: (px) => {
         const target = tMin + ((px - PAD.left) / innerW) * tSpan;
-        let lo = 0;
-        let hi = n - 1;
+        let lo = view.start;
+        let hi = view.end;
         while (lo < hi) {
           const mid = (lo + hi) >> 1;
           if (times[mid] < target) lo = mid + 1;
@@ -202,12 +246,15 @@ export function createChart(canvas, tipEl, { onScrub }) {
   }
 
   function drawSeries(values, style) {
+    // One bar of overscan each side so the line enters and leaves the frame.
+    const from = Math.max(0, plot.view.start - 1);
+    const to = Math.min(values.length - 1, plot.view.end + 1);
     ctx.save();
     ctx.beginPath();
-    for (let i = 0; i < values.length; i++) {
+    for (let i = from; i <= to; i++) {
       const px = plot.x(i);
       const py = plot.y(values[i]);
-      if (i === 0) ctx.moveTo(px, py);
+      if (i === from) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
     Object.assign(ctx, style);
@@ -223,7 +270,7 @@ export function createChart(canvas, tipEl, { onScrub }) {
       if (isBuy && !visible.buy) continue;
       if (!isBuy && !visible.sell) continue;
       const i = trade.day - 1;
-      if (i < 0 || i >= closes.length) continue;
+      if (i < plot.view.start || i > plot.view.end) continue;
       ctx.beginPath();
       ctx.arc(plot.x(i), plot.y(closes[i]), 3.5, 0, Math.PI * 2);
       ctx.fillStyle = isBuy ? COLORS.buy : COLORS.sell;
@@ -237,6 +284,7 @@ export function createChart(canvas, tipEl, { onScrub }) {
 
   function drawPointer(h) {
     const i = state.day - 1;
+    if (i < plot.view.start || i > plot.view.end) return;
     const px = Math.round(plot.x(i)) + 0.5;
     ctx.save();
     ctx.strokeStyle = COLORS.pointer;
@@ -258,7 +306,11 @@ export function createChart(canvas, tipEl, { onScrub }) {
   }
 
   function render(next) {
-    if (next) state = next;
+    if (next) {
+      // A different series (new symbol, or fresh data) invalidates the window.
+      if (state && next.closes !== state.closes) view = null;
+      state = next;
+    }
     if (!state) return;
 
     const { w, h } = layout();
@@ -305,28 +357,81 @@ export function createChart(canvas, tipEl, { onScrub }) {
   }
 
   let scrubbing = false;
+  /** Live pointers by id, so a second finger can turn a scrub into a pinch. */
+  const pointers = new Map();
+  let pinch = null;
 
   canvas.addEventListener('pointerdown', (event) => {
     if (!plot) return;
+    pointers.set(event.pointerId, localX(event));
+    // Capture is a nicety — it keeps a drag alive outside the canvas — but it
+    // throws for pointers the element never saw. Losing it must not abort the
+    // gesture setup below.
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      /* gesture still works without capture */
+    }
+
+    if (pointers.size === 2) {
+      // Second finger down: abandon the scrub, start a pinch.
+      scrubbing = false;
+      tipEl.hidden = true;
+      const [a, b] = [...pointers.values()];
+      pinch = { distance: Math.abs(a - b) || 1, span: view.end - view.start };
+      return;
+    }
     scrubbing = true;
-    canvas.setPointerCapture(event.pointerId);
     onScrub(plot.indexAt(localX(event)) + 1);
   });
 
   canvas.addEventListener('pointermove', (event) => {
     if (!plot) return;
+    if (pointers.has(event.pointerId)) pointers.set(event.pointerId, localX(event));
+
+    if (pinch && pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const distance = Math.abs(a - b) || 1;
+      const mid = (a + b) / 2;
+      const anchor = Math.min(1, Math.max(0, (mid - PAD.left) / plot.innerW));
+      const focus = view.start + (view.end - view.start) * anchor;
+      const span = pinch.span * (pinch.distance / distance);
+      clampView(focus - span * anchor, focus + span * (1 - anchor));
+      render();
+      return;
+    }
+
     const index = plot.indexAt(localX(event));
     if (scrubbing) onScrub(index + 1);
     if (index !== hoverIndex || scrubbing) hoverIndex = index;
     showTip(index, event);
   });
 
-  const endScrub = (event) => {
-    scrubbing = false;
+  const releasePointer = (event) => {
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 0) scrubbing = false;
     if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   };
-  canvas.addEventListener('pointerup', endScrub);
-  canvas.addEventListener('pointercancel', endScrub);
+  canvas.addEventListener('pointerup', releasePointer);
+  canvas.addEventListener('pointercancel', releasePointer);
+
+  // Wheel and trackpad pinch (which arrives as ctrl+wheel) zoom about the cursor.
+  canvas.addEventListener(
+    'wheel',
+    (event) => {
+      if (!plot) return;
+      event.preventDefault();
+      const anchor = Math.min(1, Math.max(0, (localX(event) - PAD.left) / plot.innerW));
+      zoomBy(Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.002)), anchor);
+    },
+    { passive: false }
+  );
+
+  canvas.addEventListener('dblclick', () => {
+    resetView();
+    render();
+  });
 
   canvas.addEventListener('pointerleave', () => {
     hoverIndex = null;
@@ -339,5 +444,5 @@ export function createChart(canvas, tipEl, { onScrub }) {
     resizeFrame = requestAnimationFrame(() => render());
   }).observe(canvas);
 
-  return { render };
+  return { render, resetView: () => { resetView(); render(); } };
 }

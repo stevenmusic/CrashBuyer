@@ -855,7 +855,9 @@ main {
   position: relative;
   height: 340px;
   padding: 10px 8px 0;
-  touch-action: pan-y;
+  /* The canvas owns its gestures so two fingers pinch the chart rather than
+     zooming the page. Scroll the page from outside the plot. */
+  touch-action: none;
 }
 
 .chart-wrap canvas {
@@ -1270,4 +1272,47 @@ main {
   .stat-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Ladder base sits in the board head, since the ladder is all it scales. */
+
+.base-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.base-field span {
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.base-field input {
+  width: 96px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.base-field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-wash);
+  outline: none;
+}
+
+.legend-reset {
+  border-color: var(--accent-dim);
+  color: var(--accent-deep);
 }
