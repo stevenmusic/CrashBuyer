@@ -132,16 +132,44 @@ async function fromFred() {
  * FRED's SP500 series is a rolling ten years and stockanalysis silently caps at
  * 10Y (every longer range returns one year). Covers ETFs, not the index.
  */
+/**
+ * Alpha Vantage's free tier allows about five calls a minute and answers a
+ * sixth with a 200 and a prose apology rather than a status code. Four ETFs
+ * fired back to back tripped it every time, so calls are paced.
+ */
+const ALPHA_SPACING_MS = 15000;
+let lastAlphaCall = 0;
+
+async function paceAlphaVantage() {
+  const wait = lastAlphaCall + ALPHA_SPACING_MS - Date.now();
+  if (wait > 0) {
+    console.log(`[fetch] pacing Alpha Vantage — waiting ${Math.ceil(wait / 1000)}s`);
+    await sleep(wait);
+  }
+  lastAlphaCall = Date.now();
+}
+
 async function fromAlphaVantage(symbol) {
+  await paceAlphaVantage();
   const url =
     'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&outputsize=full' +
     `&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(process.env.ALPHAVANTAGE_API_KEY)}`;
   const json = await (await get(url, 'application/json')).json();
 
   // Free-tier throttling comes back as 200 with a prose "Note"/"Information".
-  const series = json?.['Time Series (Daily)'];
+  let series = json?.['Time Series (Daily)'];
   if (!series) {
-    throw new Error(String(json?.Note ?? json?.Information ?? json?.['Error Message'] ?? 'unexpected payload').slice(0, 90));
+    const complaint = String(json?.Note ?? json?.Information ?? json?.['Error Message'] ?? 'unexpected payload');
+    // A throttle is worth one patient retry; a bad symbol or key is not.
+    if (!/thank you|frequency|spread|per minute/i.test(complaint)) throw new Error(complaint.slice(0, 90));
+    console.log('[fetch] Alpha Vantage throttled, backing off 60s');
+    await sleep(60000);
+    lastAlphaCall = Date.now();
+    const retry = await (await get(url, 'application/json')).json();
+    series = retry?.['Time Series (Daily)'];
+    if (!series) {
+      throw new Error(String(retry?.Note ?? retry?.Information ?? 'still throttled').slice(0, 90));
+    }
   }
 
   const rows = [];
