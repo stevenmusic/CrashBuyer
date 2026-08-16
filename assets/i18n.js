@@ -165,10 +165,6 @@ const STRINGS = {
     'alert.body': (level, date, price) =>
       `Drawdown crossed −${level}% on ${date} — now at ${price}.`,
     'alert.recovered': (date) => `Back at a new high on ${date}.`,
-    'note.monthly': (from) =>
-      from
-        ? `Bars before ${from} are monthly averages of daily closes (Shiller), so intramonth crashes look shallower than they were; from ${from} the data is daily.`
-        : 'Every bar is a monthly average of daily closes (Shiller), so intramonth crashes look shallower than they were — add a FRED_API_KEY secret for daily resolution over the last decade.',
 
     'preset.start': 'START',
     'preset.1929': '1929 Great Crash',
@@ -329,10 +325,6 @@ const STRINGS = {
     'alert.title': '崩盤抄底',
     'alert.body': (level, date, price) => `${date} 跌幅跌破 −${level}%，目前為 ${price}。`,
     'alert.recovered': (date) => `${date} 創下新高。`,
-    'note.monthly': (from) =>
-      from
-        ? `${from} 之前的資料是每日收盤的「月平均」（Shiller 資料集），因此月內的急跌看起來會比實際溫和；${from} 之後為每日資料。`
-        : '所有資料點都是每日收盤的「月平均」（Shiller 資料集），因此月內的急跌看起來會比實際溫和——加上 FRED_API_KEY secret 即可讓最近十年變成每日資料。',
 
     'preset.start': '起點',
     'preset.1929': '1929 大崩盤',

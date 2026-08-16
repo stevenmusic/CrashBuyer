@@ -793,7 +793,6 @@ function applyInstrumentLabels() {
 
   const notes = [];
   if (series.proxy) notes.push(t('proxy.note', series.symbol));
-  if (series.monthlyNote) notes.push(t('note.monthly', series.dailyFrom && formatDate(series.dailyFrom)));
 
   const footer = document.querySelector('.footer');
   for (const text of notes.reverse()) {

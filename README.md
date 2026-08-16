@@ -1,8 +1,8 @@
 # CrashBuyer — Crash Buying Simulator · S&P 500
 
-Rewind the S&P 500 to any point in its published history — back to 1871 — buy the
-crashes with a fixed drawdown allocation ladder, and see what the portfolio is
-worth today. English and 繁體中文.
+Rewind the S&P 500 across ten years of daily closes, buy the crashes with a fixed
+drawdown allocation ladder, and see what the portfolio is worth today. English
+and 繁體中文.
 
 A static page: plain HTML, CSS and ES modules, no build step, no dependencies, no
 external requests at runtime beyond an optional live price top-up.
@@ -48,8 +48,8 @@ derives from it.
 ## How the simulation behaves
 
 - **Day pointer** drives everything. Move it with the arrows, the number box, the
-  ← / → keys (hold Shift for 20 bars), the crash preset buttons (1929, 1987, 2000,
-  2008, 2020, 2022), or by clicking and dragging on the chart.
+  ← / → keys (hold Shift for 20 bars), the crash preset buttons, or by clicking
+  and dragging on the chart. Presets outside the loaded range are hidden.
 - **Units are fractional**: `units = amount / close`, exactly, with no minimum lot.
 - **The portfolio only counts trades that have already happened** — trades dated after
   the day pointer are listed but greyed out, so rewinding to 2018 never shows units
@@ -75,64 +75,49 @@ Prices are index closes: no dividends, fees, taxes or slippage. Educational only
 
 ## Data
 
-`data/sp500-daily.json` holds the close series as parallel `dates` / `closes`
-arrays, covering **the whole published history of the index**.
+`data/sp500-daily.json` holds **daily** closes as parallel `dates` / `closes`
+arrays, covering roughly the last ten years.
 
-| Segment                | Source                          | Resolution        |
-| ---------------------- | ------------------------------- | ----------------- |
-| Jan 1871 → present     | Shiller long series             | monthly           |
-| last ~10 years         | FRED `SP500` (needs a free key) | daily             |
+Daily bars only. A monthly long history (Shiller, back to 1871) was tried and
+removed: averaging a month of closes hides exactly the intramonth collapses this
+tool exists to show — October 1987 flattens from −20% in a session to about −13%
+— and a chart mixing the two resolutions invites comparing a smoothed 1930s with
+a jagged 2020s.
 
-Both are real S&P 500 index levels, so they splice without any rescaling: the
-monthly history runs up to the day the daily segment starts, and daily takes over
-from there.
-
-**The monthly bars are averages of daily closes, not month-end closes.** That is
-how Shiller's series is built, and it means intramonth crashes look shallower than
-they were — October 1987 averages to about −13% rather than Black Monday's −20% in
-a single session. The page says so in a footer note. Adding the FRED key restores
-true daily resolution for the recent decade.
-
-### Getting daily resolution
+| Source                        | Instrument         | Key    |
+| ----------------------------- | ------------------ | ------ |
+| `api.stlouisfed.org` (FRED)   | ^GSPC index levels | free   |
+| `stockanalysis.com` `/s/`     | SPY ETF, ~10Y      | none   |
 
 Which sources answer a GitHub-hosted runner was measured, not assumed:
+`raw.githubusercontent.com` and `api.stlouisfed.org` answer; `stockanalysis.com`
+answers on `/s/` but 400s on `/i/` for every index symbol; `fred.stlouisfed.org/graph`
+times out; `stooq.com` returns an HTML robots page; `query{1,2}.finance.yahoo.com`
+429s across the whole runner IP range.
 
-| Source                         | From CI                          |
-| ------------------------------ | -------------------------------- |
-| `raw.githubusercontent.com`    | 200 — Shiller monthly, 1871+     |
-| `api.stlouisfed.org` (FRED)    | 200 — needs a free key           |
-| `stockanalysis.com` `/s/`      | 200, no key — ETFs only, max 10Y |
-| `stockanalysis.com` `/i/`      | 400 for every S&P index symbol   |
-| `fred.stlouisfed.org/graph`    | connection times out             |
-| `stooq.com`                    | 200, but an HTML robots page     |
-| `query{1,2}.finance.yahoo.com` | 429 across the runner IP range   |
-
-[Get a free FRED API key][fred] (instant, no card) and add it as a repository
-secret named `FRED_API_KEY` under **Settings → Secrets and variables → Actions**.
-The next run picks it up automatically.
+With no key the script falls back to the SPY ETF — about a tenth of the index
+level — and the page labels itself as showing a proxy rather than silently
+mislabelling ETF prices as the index. To get real index levels,
+[get a free FRED API key][fred] and add it as a repository secret named
+`FRED_API_KEY` under **Settings → Secrets and variables → Actions**.
 
 [fred]: https://fredaccount.stlouisfed.org/apikeys
-
-If the long history cannot be fetched at all, the script falls back to the SPY
-ETF — about a tenth of the index level — and the page labels itself as showing a
-proxy rather than silently mislabelling ETF prices as the index.
 
 ### Refresh
 
 1. **Daily.** `.github/workflows/update-data.yml` runs `scripts/fetch-sp500.mjs` at
    23:10 UTC on weekdays and commits the file when it changes. It refuses to
-   overwrite a series with a shorter or older one from the same source.
+   overwrite a series with a shorter or older one from the same source, so a bad
+   upstream response fails the run instead of corrupting the data.
 2. **Live top-up (best effort).** On load the page fetches the latest quote and
    appends today's bar. Those endpoints are key-less, so a browser may refuse them
    on CORS grounds; the status pill shows `live · <source>` or `daily snapshot`. A
    quote more than 30% away from the last close is rejected, so an index quote can
    never be spliced onto an ETF series.
 
-Run the fetch by hand with:
-
 ```sh
-node scripts/fetch-sp500.mjs                    # monthly, 1871+
-FRED_API_KEY=... node scripts/fetch-sp500.mjs   # + daily for the last decade
+node scripts/fetch-sp500.mjs                    # SPY, no key
+FRED_API_KEY=... node scripts/fetch-sp500.mjs   # ^GSPC index levels
 ```
 
 ## Language

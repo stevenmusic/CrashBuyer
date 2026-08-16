@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Fetches the full S&P 500 daily close history and writes data/sp500-daily.json.
+// Fetches the S&P 500 daily close history and writes data/sp500-daily.json.
 //
-// Sources are tried in order until one returns a usable series. Stooq is first
-// because it needs no key and serves the whole history in one CSV; Yahoo is the
-// fallback. Run locally with `node scripts/fetch-sp500.mjs`; CI runs it daily.
+// Daily bars only. A monthly series was tried and dropped: averaging a month of
+// closes hides exactly the intramonth collapses this tool exists to show, and a
+// chart mixing the two resolutions invites the reader to compare a smoothed
+// 1930s with a jagged 2020s. Sources are tried in order; CI runs this daily.
 
 import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -65,38 +66,6 @@ async function get(url, accept, attempts = 3) {
     if (attempt < attempts) await sleep(attempt * 2000);
   }
   throw lastError;
-}
-
-/**
- * Robert Shiller's long series (via the `datasets/s-and-p-500` mirror): real
- * S&P 500 index levels every month from January 1871, kept current.
- *
- * Caveat worth knowing: each value is the *monthly average* of daily closes,
- * not a month-end close, so intramonth crashes are smoothed — October 1987
- * averages out to about −13% rather than the −20% of Black Monday itself. It is
- * still the canonical long history, and the daily FRED segment takes over for
- * the recent decade whenever a key is configured.
- */
-async function fromShiller() {
-  const res = await get(
-    'https://raw.githubusercontent.com/datasets/s-and-p-500/main/data/data.csv',
-    'text/csv'
-  );
-  const lines = (await res.text()).trim().split('\n');
-  const head = lines[0].split(',').map((h) => h.trim());
-  const iDate = head.indexOf('Date');
-  const iClose = head.indexOf('SP500');
-  if (iDate < 0 || iClose < 0) throw new Error(`unexpected CSV header: ${lines[0].slice(0, 60)}`);
-
-  const rows = [];
-  for (const line of lines.slice(1)) {
-    const cells = line.split(',');
-    const close = Number(cells[iClose]);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(cells[iDate]) && Number.isFinite(close) && close > 0) {
-      rows.push([cells[iDate], close]);
-    }
-  }
-  return rows;
 }
 
 /**
@@ -194,17 +163,6 @@ function normalise(rows) {
   return [...byDate.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
 }
 
-/**
- * Splices the monthly history onto the daily one: monthly bars up to the day
- * the daily series begins, then daily from there. Both are real index levels,
- * so they join without any rescaling.
- */
-function splice(monthly, daily) {
-  if (!daily.length) return { rows: monthly, dailyFrom: null };
-  const from = daily[0][0];
-  return { rows: [...monthly.filter(([date]) => date < from), ...daily], dailyFrom: from };
-}
-
 // Guards against a source that answers 200 with a truncated or stale series —
 // overwriting good data with that is worse than failing the run.
 async function assertNotWorseThanCommitted(next) {
@@ -270,25 +228,15 @@ async function main() {
   }
 
   if (daily.length >= 500) {
-    // Real index levels, so Shiller's monthly history splices on in front of it
-    // without any rescaling — free extra decades for anyone who wants them.
-    let monthly = [];
-    try {
-      monthly = normalise(await fromShiller());
-    } catch (err) {
-      note('shiller', err);
-    }
-    const { rows, dailyFrom } = splice(monthly, daily);
     await write(
-      pack(rows, {
+      pack(daily, {
         symbol: '^GSPC',
         name: 'S&P 500',
         proxy: false,
-        source: monthly.length ? 'shiller + fred' : 'fred',
-        dailyFrom,
-        monthlyNote: monthly.length > 0,
+        source: 'fred',
+        dailyFrom: daily[0][0],
       }),
-      monthly.length ? `monthly to ${dailyFrom}, daily after` : 'daily'
+      'daily'
     );
     return;
   }
@@ -298,7 +246,7 @@ async function main() {
     const rows = normalise(await fromStockAnalysis());
     if (rows.length >= 500) {
       await write(
-        pack(rows, { ...META.stockanalysis, source: 'stockanalysis', dailyFrom: rows[0][0], monthlyNote: false }),
+        pack(rows, { ...META.stockanalysis, source: 'stockanalysis', dailyFrom: rows[0][0] }),
         'daily (ETF proxy)'
       );
       return;
@@ -308,33 +256,12 @@ async function main() {
     note('stockanalysis', err);
   }
 
-  // Last resort: monthly history beats no history.
-  try {
-    const monthly = normalise(await fromShiller());
-    if (monthly.length >= 500) {
-      await write(
-        pack(monthly, {
-          symbol: '^GSPC',
-          name: 'S&P 500',
-          proxy: false,
-          source: 'shiller',
-          dailyFrom: null,
-          monthlyNote: true,
-        }),
-        'monthly only'
-      );
-      return;
-    }
-  } catch (err) {
-    note('shiller', err);
-  }
-
   for (const source of [{ name: 'stooq', fetch: fromStooq }, { name: 'yahoo', fetch: fromYahoo }]) {
     try {
       const rows = normalise(await source.fetch());
       if (rows.length < 500) continue;
       await write(
-        pack(rows, { ...META[source.name], source: source.name, dailyFrom: rows[0][0], monthlyNote: false }),
+        pack(rows, { ...META[source.name], source: source.name, dailyFrom: rows[0][0] }),
         source.name
       );
       return;
