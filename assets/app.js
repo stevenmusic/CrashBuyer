@@ -742,6 +742,18 @@ function buildPresets() {
   );
 }
 
+/**
+ * iOS has ignored `user-scalable=no` since iOS 10, so the viewport meta alone
+ * does not stop a stray two-finger gesture from zooming the whole page while
+ * the user is trying to pinch the chart. Safari's non-standard gesture events
+ * are the only handle on it.
+ */
+function lockPageZoom() {
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
+  }
+}
+
 function bindEvents() {
   dom.dayPrev.addEventListener('click', () => stepDay(-1));
   dom.dayNext.addEventListener('click', () => stepDay(1));
@@ -965,6 +977,7 @@ async function main() {
     },
   });
   bindEvents();
+  lockPageZoom();
   render();
   dom.layout.setAttribute('aria-busy', 'false');
   renderDataStatus();

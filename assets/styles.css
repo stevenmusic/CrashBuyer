@@ -58,6 +58,10 @@ html {
 
 body {
   margin: 0;
+  /* Kills the double-tap-to-zoom delay and gesture. Pinch is handled by the
+     chart itself; see the gesture guard in app.js for iOS, which ignores
+     user-scalable=no. */
+  touch-action: manipulation;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);

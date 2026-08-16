@@ -356,10 +356,23 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
     tipEl.style.top = `${Math.max(6, y - tipEl.offsetHeight - 12)}px`;
   }
 
-  let scrubbing = false;
-  /** Live pointers by id, so a second finger can turn a scrub into a pinch. */
+  /** Below this much travel a press is a tap, not a drag. */
+  const TAP_SLOP = 5;
+
+  /** Live pointers by id, so a second finger can turn a drag into a pinch. */
   const pointers = new Map();
   let pinch = null;
+  let pan = null;
+
+  /** Shifts the window by whole bars, clamped to the data. */
+  function panBy(bars) {
+    const span = view.end - view.start;
+    let start = Math.round(bars);
+    if (start < 0) start = 0;
+    if (start + span > state.closes.length - 1) start = state.closes.length - 1 - span;
+    view = { start, end: start + span };
+    onZoom?.(view.start > 0 || view.end < state.closes.length - 1);
+  }
 
   canvas.addEventListener('pointerdown', (event) => {
     if (!plot) return;
@@ -374,15 +387,17 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
     }
 
     if (pointers.size === 2) {
-      // Second finger down: abandon the scrub, start a pinch.
-      scrubbing = false;
+      // Second finger down: abandon the pan, start a pinch.
+      pan = null;
       tipEl.hidden = true;
       const [a, b] = [...pointers.values()];
       pinch = { distance: Math.abs(a - b) || 1, span: view.end - view.start };
       return;
     }
-    scrubbing = true;
-    onScrub(plot.indexAt(localX(event)) + 1);
+
+    // A press starts a pan; it only becomes one once it has travelled. Releasing
+    // without travelling is a tap, which sets the day pointer instead.
+    pan = { originX: localX(event), startBar: view.start, moved: false };
   });
 
   canvas.addEventListener('pointermove', (event) => {
@@ -401,16 +416,37 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
       return;
     }
 
+    if (pan) {
+      const dx = localX(event) - pan.originX;
+      if (!pan.moved && Math.abs(dx) < TAP_SLOP) {
+        // Still within the tap threshold — show the crosshair, do not pan yet.
+        const idx = plot.indexAt(localX(event));
+        hoverIndex = idx;
+        showTip(idx, event);
+        return;
+      }
+      pan.moved = true;
+      tipEl.hidden = true;
+      // Dragging right walks back in time, as on any chart.
+      const barsPerPx = (view.end - view.start) / plot.innerW;
+      panBy(pan.startBar - dx * barsPerPx);
+      render();
+      return;
+    }
+
     const index = plot.indexAt(localX(event));
-    if (scrubbing) onScrub(index + 1);
-    if (index !== hoverIndex || scrubbing) hoverIndex = index;
+    if (index !== hoverIndex) hoverIndex = index;
     showTip(index, event);
   });
 
   const releasePointer = (event) => {
     pointers.delete(event.pointerId);
     if (pointers.size < 2) pinch = null;
-    if (pointers.size === 0) scrubbing = false;
+    if (pointers.size === 0) {
+      // A press that never travelled is a tap: place the day pointer.
+      if (pan && !pan.moved && plot) onScrub(plot.indexAt(localX(event)) + 1);
+      pan = null;
+    }
     if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   };
   canvas.addEventListener('pointerup', releasePointer);

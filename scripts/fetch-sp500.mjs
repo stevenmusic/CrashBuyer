@@ -31,6 +31,14 @@ const INSTRUMENTS = [
 
 const fileFor = (id) => resolve(DATA_DIR, `${id}.json`);
 
+/**
+ * Earliest bar to keep. Alpha Vantage reaches back further for the older ETFs
+ * (SPY listed in 1993), but a common floor keeps the instruments comparable and
+ * the day-pointer numbering sane. Sources that cannot reach it simply start
+ * later — the manifest records each one's real range.
+ */
+const START_FROM = '2000-01-01';
+
 // Which sources answer a GitHub-hosted runner was measured, not guessed:
 //
 //   api.stlouisfed.org      200 with a key   <- true S&P 500 index levels
@@ -200,11 +208,13 @@ async function fromYahoo() {
   return rows;
 }
 
-/** Sorts and de-duplicates by date. All available history is kept. */
+/** Sorts, de-duplicates by date and drops anything before the floor. */
 function normalise(rows) {
   const byDate = new Map();
   for (const [date, close] of rows) byDate.set(date, close);
-  return [...byDate.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  return [...byDate.entries()]
+    .filter(([date]) => date >= START_FROM)
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1));
 }
 
 // Guards against a source that answers 200 with a truncated or stale series —
