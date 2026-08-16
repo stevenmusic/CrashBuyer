@@ -15,6 +15,9 @@ const LIVE_TIMEOUT_MS = 6000;
 /** Trading days after which the committed snapshot is called out as stale. */
 const STALE_AFTER_DAYS = 5;
 
+/** Rolling window kept in memory, matching what scripts/fetch-sp500.mjs commits. */
+const WINDOW_YEARS = 10.6;
+
 export async function loadSeries() {
   const res = await fetch(DATA_URL, { cache: 'no-cache' });
   if (!res.ok) {
@@ -33,6 +36,87 @@ export async function loadSeries() {
   return json;
 }
 
+/** Sorts, de-duplicates and trims to the rolling window. */
+function toSeries(rows, source) {
+  const byDate = new Map(rows);
+  const sorted = [...byDate.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+
+  const cutoff = new Date(`${sorted.at(-1)[0]}T00:00:00Z`);
+  cutoff.setUTCFullYear(cutoff.getUTCFullYear() - Math.floor(WINDOW_YEARS));
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - Math.round((WINDOW_YEARS % 1) * 12));
+  const from = cutoff.toISOString().slice(0, 10);
+  const kept = sorted.filter(([date]) => date >= from);
+
+  return {
+    symbol: '^GSPC',
+    name: 'S&P 500',
+    source: `${source} (in-browser)`,
+    updatedAt: new Date().toISOString(),
+    start: kept[0][0],
+    end: kept.at(-1)[0],
+    count: kept.length,
+    dates: kept.map((r) => r[0]),
+    closes: kept.map((r) => Math.round(r[1] * 100) / 100),
+  };
+}
+
+async function stooqHistory() {
+  const res = await fetchWithTimeout('https://stooq.com/q/d/l/?s=%5Espx&i=d', {}, 20000);
+  const lines = (await res.text()).trim().split('\n');
+  const head = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const iDate = head.indexOf('date');
+  const iClose = head.indexOf('close');
+  if (iDate < 0 || iClose < 0) throw new Error('unexpected CSV columns');
+
+  const rows = [];
+  for (const line of lines.slice(1)) {
+    const cells = line.split(',');
+    const close = Number(cells[iClose]);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cells[iDate]) && Number.isFinite(close) && close > 0) {
+      rows.push([cells[iDate], close]);
+    }
+  }
+  return rows;
+}
+
+async function yahooHistory() {
+  const res = await fetchWithTimeout(
+    'https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=15y&interval=1d',
+    {},
+    20000
+  );
+  const result = (await res.json())?.chart?.result?.[0];
+  const stamps = result?.timestamp ?? [];
+  const closes = result?.indicators?.quote?.[0]?.close ?? [];
+  const rows = [];
+  for (let i = 0; i < stamps.length; i++) {
+    if (Number.isFinite(closes[i]) && closes[i] > 0) {
+      rows.push([new Date(stamps[i] * 1000).toISOString().slice(0, 10), closes[i]]);
+    }
+  }
+  return rows;
+}
+
+/**
+ * Last-resort path when the committed snapshot is missing: pull the whole
+ * history straight from the browser. Whether this is allowed is up to the
+ * endpoint's CORS policy, so it is a bonus, not the supported route.
+ */
+export async function bootstrapSeries() {
+  for (const source of [
+    { name: 'stooq', fetch: stooqHistory },
+    { name: 'yahoo', fetch: yahooHistory },
+  ]) {
+    try {
+      const rows = await source.fetch();
+      if (rows.length >= 500) return toSeries(rows, source.name);
+    } catch {
+      // Try the next source.
+    }
+  }
+  return null;
+}
+
 /** Calendar days between the last bar and today. */
 export function daysSince(iso) {
   const then = Date.parse(`${iso}T00:00:00Z`);
@@ -44,9 +128,9 @@ export function isStale(series) {
   return daysSince(series.end) > STALE_AFTER_DAYS;
 }
 
-async function fetchWithTimeout(url, init = {}) {
+async function fetchWithTimeout(url, init = {}, timeoutMs = LIVE_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), LIVE_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { ...init, signal: controller.signal, cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

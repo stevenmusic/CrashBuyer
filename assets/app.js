@@ -1,6 +1,6 @@
 // Wiring: load the series, hold the simulation state, render every panel.
 
-import { loadSeries, refreshLive, isStale, daysSince } from './data.js';
+import { loadSeries, bootstrapSeries, refreshLive, isStale, daysSince } from './data.js';
 import {
   runningPeaks,
   drawdownEpisodes,
@@ -312,7 +312,9 @@ function renderPortfolio(pf) {
 
   dom.pfPending.hidden = pf.pending === 0;
   dom.pfPending.textContent = pf.pending
-    ? `${pf.pending} logged trade${pf.pending === 1 ? '' : 's'} happen after this date and are not counted yet.`
+    ? pf.pending === 1
+      ? '1 logged trade happens after this date and is not counted yet.'
+      : `${pf.pending} logged trades happen after this date and are not counted yet.`
     : '';
 }
 
@@ -530,12 +532,14 @@ function bindEvents() {
   });
 }
 
-function renderDataStatus(live) {
+function renderDataStatus(live, bootstrapped) {
   const stale = isStale(series);
-  const state_ = live?.ok ? 'live' : stale ? 'error' : 'daily';
+  const state_ = live?.ok || bootstrapped ? 'live' : stale ? 'error' : 'daily';
   const label = live?.ok
     ? `live · ${live.source} · ${formatDate(series.end)}`
-    : `daily snapshot · ${formatDate(series.end)}`;
+    : bootstrapped
+      ? `direct fetch · ${formatDate(series.end)}`
+      : `daily snapshot · ${formatDate(series.end)}`;
 
   dom.dataStatus.dataset.state = state_;
   dom.dataStatus.textContent = label;
@@ -547,7 +551,8 @@ function renderDataStatus(live) {
     series.start
   )} → ${formatDate(series.end)} · source: ${series.source ?? 'n/a'}`;
 
-  if (stale) {
+  // Don't overwrite the bootstrap notice, which is the more actionable message.
+  if (stale && !bootstrapped) {
     dom.dataError.hidden = false;
     dom.dataError.textContent = `Price data is ${daysSince(
       series.end
@@ -556,14 +561,25 @@ function renderDataStatus(live) {
 }
 
 async function main() {
+  let bootstrapped = false;
   try {
     series = await loadSeries();
   } catch (error) {
+    // No committed snapshot yet — try to pull the history in the browser so the
+    // page is usable before the first CI refresh lands.
+    dom.dataStatus.textContent = 'fetching history…';
+    series = await bootstrapSeries();
+    if (!series) {
+      dom.dataError.hidden = false;
+      dom.dataError.textContent = `${error.message} A direct in-browser fetch was also blocked, so there is nothing to display.`;
+      dom.dataStatus.dataset.state = 'error';
+      dom.dataStatus.textContent = 'no data';
+      return;
+    }
+    bootstrapped = true;
     dom.dataError.hidden = false;
-    dom.dataError.textContent = error.message;
-    dom.dataStatus.dataset.state = 'error';
-    dom.dataStatus.textContent = 'no data';
-    return;
+    dom.dataError.textContent =
+      'No committed price snapshot found — this history was fetched directly in your browser and is not cached. Run the "Update S&P 500 data" workflow to commit it.';
   }
 
   peaks = runningPeaks(series.closes);
@@ -578,7 +594,7 @@ async function main() {
   bindEvents();
   render();
   dom.layout.setAttribute('aria-busy', 'false');
-  renderDataStatus(null);
+  renderDataStatus(null, bootstrapped);
 
   // Best-effort top-up; recompute the derived series if it added a bar.
   const live = await refreshLive(series);
@@ -588,7 +604,7 @@ async function main() {
     if (live.added && state.day === series.count - 1) state.day = series.count;
     render();
   }
-  renderDataStatus(live);
+  renderDataStatus(live, bootstrapped);
 }
 
 main();

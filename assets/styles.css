@@ -445,7 +445,59 @@ body {
   background: var(--panel);
 }
 
-/* Allocation guide */
+/* Allocation guide — five columns into a narrow panel, so the padding is
+   tighter than the other grids and the widths are pinned. */
+
+.alloc {
+  table-layout: fixed;
+  width: 100%;
+  font-size: 12px;
+}
+
+.alloc td {
+  padding: 7px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Let "TRIGGER PRICE" / "% INVEST" stack onto two lines rather than clip. */
+.alloc th {
+  padding: 7px 6px;
+  white-space: normal;
+  line-height: 1.25;
+  letter-spacing: 0.03em;
+  vertical-align: bottom;
+}
+
+.alloc th:first-child,
+.alloc td:first-child {
+  padding-left: 12px;
+}
+
+.alloc th:last-child,
+.alloc td:last-child {
+  padding-right: 12px;
+}
+
+.alloc col.c-dd {
+  width: 22%;
+}
+
+.alloc col.c-trigger {
+  width: 27%;
+}
+
+.alloc col.c-pct {
+  width: 15%;
+}
+
+.alloc col.c-amount {
+  width: 21%;
+}
+
+.alloc col.c-use {
+  width: 15%;
+}
 
 .alloc td {
   font-weight: 600;
@@ -460,7 +512,8 @@ body {
 }
 
 .use-btn {
-  padding: 3px 10px;
+  width: 100%;
+  padding: 3px 4px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: #f5f3ee;
@@ -574,6 +627,8 @@ body {
   width: 9px;
   height: 9px;
   border-radius: 2px;
+  /* The panel header is navy, so dark swatches need an outline to read. */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
 }
 
 .swatch-price {
