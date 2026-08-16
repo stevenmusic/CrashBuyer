@@ -25,6 +25,11 @@ jobs:
           node-version: '22'
 
       - name: Fetch latest daily closes
+        # Optional: set a free FRED_API_KEY secret to get true S&P 500 index
+        # levels. Without it the script falls back to the SPY ETF, which needs
+        # no key but quotes ~1/10 of the index level.
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: node scripts/fetch-sp500.mjs
 
       - name: Commit if the series changed

@@ -17,16 +17,32 @@ const OUT = resolve(ROOT, 'data/sp500-daily.json');
 // pointer unwieldy.
 const YEARS = 10.6;
 
-// FRED is first because it is the only one of the three that reliably answers
-// from CI: Stooq serves datacenter IPs an HTML interstitial and Yahoo rate-limits
-// them with 429s. Its SP500 series is a rolling 10 years of daily closes, which
-// is the window this simulator wants anyway. The other two stay as fallbacks and
-// as the sources the browser uses for live top-ups.
+// Which sources answer a GitHub-hosted runner was measured, not guessed:
+//
+//   api.stlouisfed.org      200 with a key   <- true S&P 500 index levels
+//   stockanalysis.com /s/   200, no key      <- ETF only; /i/ (indices) 400s
+//   fred.stlouisfed.org/graph  connection times out
+//   stooq.com               200 but an HTML "robots" interstitial
+//   query{1,2}.finance.yahoo.com  429 for the whole runner IP range
+//
+// So FRED is preferred and gives the real index, but it needs a free key in the
+// FRED_API_KEY secret. Without one, SPY stands in: it tracks the index closely
+// and every number this simulator shows except the raw price level is a
+// percentage, so the ladder and returns behave the same. The payload records
+// which one was used so the UI can label a proxy honestly.
 const sources = [
-  { name: 'fred', fetch: fromFred },
+  { name: 'fred', fetch: fromFred, skip: () => !process.env.FRED_API_KEY },
+  { name: 'stockanalysis', fetch: fromStockAnalysis },
   { name: 'stooq', fetch: fromStooq },
   { name: 'yahoo', fetch: fromYahoo },
 ];
+
+const META = {
+  fred: { symbol: '^GSPC', name: 'S&P 500', proxy: false },
+  stockanalysis: { symbol: 'SPY', name: 'S&P 500 · SPY ETF', proxy: true },
+  stooq: { symbol: '^GSPC', name: 'S&P 500', proxy: false },
+  yahoo: { symbol: '^GSPC', name: 'S&P 500', proxy: false },
+};
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -57,23 +73,47 @@ async function get(url, accept, attempts = 3) {
 }
 
 /**
- * FRED's CSV is `observation_date,SP500` (older exports use `DATE`), with "."
- * standing in for market holidays.
+ * FRED's official API — real S&P 500 index closes. Its SP500 series only goes
+ * back 10 years, which is the window this simulator wants anyway. Holidays come
+ * through as "." and are dropped.
  */
 async function fromFred() {
-  const res = await get('https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500', 'text/csv');
-  const text = await res.text();
-  const lines = text.trim().split('\n');
-  if (!/^(observation_date|DATE),/i.test(lines[0])) {
-    throw new Error(`unexpected CSV header: ${lines[0]?.slice(0, 60)}`);
-  }
+  const start = new Date();
+  start.setUTCFullYear(start.getUTCFullYear() - 11);
+  const url =
+    'https://api.stlouisfed.org/fred/series/observations' +
+    `?series_id=SP500&file_type=json&observation_start=${start.toISOString().slice(0, 10)}` +
+    `&api_key=${encodeURIComponent(process.env.FRED_API_KEY)}`;
+
+  const json = await (await get(url, 'application/json')).json();
+  if (!Array.isArray(json?.observations)) throw new Error('unexpected FRED payload');
 
   const rows = [];
-  for (const line of lines.slice(1)) {
-    const [date, raw] = line.split(',');
-    const close = Number(raw);
+  for (const { date, value } of json.observations) {
+    const close = Number(value);
     if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(close) && close > 0) {
       rows.push([date, close]);
+    }
+  }
+  return rows;
+}
+
+/**
+ * stockanalysis.com, no key required. Only the /s/ (stocks and ETFs) route
+ * works — /i/ returns 400 for every S&P index symbol — so this is SPY, newest
+ * bar first. `c` is the raw close; the dividend-adjusted `a` is deliberately
+ * ignored so the series behaves like a price index.
+ */
+async function fromStockAnalysis() {
+  const url = 'https://stockanalysis.com/api/symbol/s/spy/history?range=10Y&period=Day';
+  const json = await (await get(url, 'application/json')).json();
+  if (!Array.isArray(json?.data)) throw new Error(`unexpected payload: ${JSON.stringify(json).slice(0, 80)}`);
+
+  const rows = [];
+  for (const bar of json.data) {
+    const close = Number(bar?.c);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(bar?.t ?? '') && Number.isFinite(close) && close > 0) {
+      rows.push([bar.t, close]);
     }
   }
   return rows;
@@ -156,6 +196,11 @@ async function assertNotWorseThanCommitted(next) {
 async function main() {
   const failures = [];
   for (const source of sources) {
+    if (source.skip?.()) {
+      console.log(`[fetch-sp500] ${source.name} skipped — no API key configured`);
+      continue;
+    }
+
     let rows;
     try {
       rows = normalise(await source.fetch());
@@ -172,8 +217,7 @@ async function main() {
     }
 
     const payload = {
-      symbol: '^GSPC',
-      name: 'S&P 500',
+      ...META[source.name],
       source: source.name,
       updatedAt: new Date().toISOString(),
       start: rows[0][0],

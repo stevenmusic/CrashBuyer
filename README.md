@@ -59,23 +59,46 @@ Two layers keep it current:
 
 1. **Daily refresh (reliable).** `.github/workflows/update-data.yml` runs
    `scripts/fetch-sp500.mjs` at 23:10 UTC on weekdays — after the 16:00 ET close in
-   both EST and EDT — and commits the file when it changes. The script tries Stooq
-   then Yahoo, and refuses to overwrite the committed series with anything shorter or
-   older, so a bad upstream response fails the run instead of corrupting the data.
+   both EST and EDT — and commits the file when it changes. It refuses to overwrite
+   the committed series with anything shorter or older, so a bad upstream response
+   fails the run instead of corrupting the data.
 2. **Live top-up (best effort).** On load the page fetches the latest quote directly
-   and appends or replaces today's bar. Both endpoints are public and key-less, so a
-   browser may refuse them on CORS grounds; when that happens the page silently stays
-   on the committed snapshot. The status pill in the header shows which is in effect —
+   and appends or replaces today's bar. Those endpoints are key-less, so a browser may
+   refuse them on CORS grounds; when that happens the page silently stays on the
+   committed snapshot. The status pill in the header shows which is in effect —
    `live · <source>` or `daily snapshot` — and the page warns if the snapshot is more
    than five days old.
 
-For a guaranteed real-time feed, add a keyed source (Alpha Vantage, Twelve Data,
-Finnhub, …) to `LIVE_SOURCES` in `assets/data.js`.
+### Getting true index levels
+
+Which sources answer a GitHub-hosted runner was measured, not assumed:
+
+| Source                        | From CI                            |
+| ----------------------------- | ---------------------------------- |
+| `api.stlouisfed.org` (FRED)   | 200 — needs a free key             |
+| `stockanalysis.com/api/.../s/`| 200, no key — **ETFs only**        |
+| `stockanalysis.com/api/.../i/`| 400 for every S&P index symbol     |
+| `fred.stlouisfed.org/graph`   | connection times out               |
+| `stooq.com`                   | 200, but an HTML robots page       |
+| `query{1,2}.finance.yahoo.com`| 429 across the runner IP range     |
+
+So **out of the box the data is SPY**, the ETF that tracks the index. It quotes about
+a tenth of the index level (~$776 vs ~$7,799), and the page labels itself accordingly.
+Because every other figure here — drawdown, ladder trigger, return — is a percentage,
+the simulation behaves the same either way.
+
+To switch to real S&P 500 index levels, [get a free FRED API key][fred] (instant, no
+card) and add it as a repository secret named `FRED_API_KEY` under
+**Settings → Secrets and variables → Actions**. The next run picks it up automatically
+and prefers it over SPY.
+
+[fred]: https://fredaccount.stlouisfed.org/apikeys
 
 Run the fetch by hand with:
 
 ```sh
-node scripts/fetch-sp500.mjs
+node scripts/fetch-sp500.mjs              # SPY
+FRED_API_KEY=... node scripts/fetch-sp500.mjs   # S&P 500 index
 ```
 
 ## Deploying

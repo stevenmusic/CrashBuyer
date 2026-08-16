@@ -532,6 +532,26 @@ function bindEvents() {
   });
 }
 
+/**
+ * The page is written for the index, but the key-less data source quotes the
+ * SPY ETF instead. Say so wherever the instrument is named rather than letting
+ * ETF prices sit under an "S&P 500" label.
+ */
+function applyInstrumentLabels() {
+  const name = series.name ?? 'S&P 500';
+  document.querySelector('.brand-sub').textContent = name;
+  document.querySelector('.col-right .panel-head h2').textContent = `${name} · Historical Price`;
+  document.title = `Crash Buying Simulator · ${name}`;
+
+  if (!series.proxy) return;
+  const note = document.createElement('p');
+  note.className = 'proxy-note';
+  note.textContent =
+    `Prices are ${series.symbol}, the ETF that tracks the index — roughly a tenth of the index level. ` +
+    'Drawdowns, the allocation ladder and returns are unaffected; add a FRED_API_KEY secret to switch to true index levels.';
+  document.querySelector('.footer').prepend(note);
+}
+
 function renderDataStatus(live, bootstrapped) {
   const stale = isStale(series);
   const state_ = live?.ok || bootstrapped ? 'live' : stale ? 'error' : 'daily';
@@ -547,9 +567,10 @@ function renderDataStatus(live, bootstrapped) {
     ? `Topped up in-browser from ${live.source}.`
     : 'Live top-up unavailable (usually a CORS block); showing the daily committed snapshot.';
 
-  dom.dataMeta.textContent = `${series.count.toLocaleString('en-US')} trading days · ${formatDate(
-    series.start
-  )} → ${formatDate(series.end)} · source: ${series.source ?? 'n/a'}`;
+  dom.dataMeta.textContent =
+    `${series.count.toLocaleString('en-US')} trading days · ${formatDate(series.start)} → ${formatDate(
+      series.end
+    )} · ${series.symbol ?? '?'} via ${series.source ?? 'n/a'}` + (series.proxy ? ' · ETF proxy' : '');
 
   // Don't overwrite the bootstrap notice, which is the more actionable message.
   if (stale && !bootstrapped) {
@@ -585,6 +606,7 @@ async function main() {
   peaks = runningPeaks(series.closes);
   episodes = drawdownEpisodes(series.closes);
   state.day = series.count;
+  applyInstrumentLabels();
 
   restore();
   dom.startingCash.value = String(state.startingCash);
