@@ -82,13 +82,9 @@
 
         <div class="tape-meter">
           <div class="meter-bar"><span id="meter-marker" class="meter-marker"></span></div>
-          <div class="meter-ticks">
-            <span style="left: 25%">&minus;10</span>
-            <span style="left: 37.5%">&minus;15</span>
-            <span style="left: 50%">&minus;20</span>
-            <span style="left: 62.5%">&minus;25</span>
-            <span style="left: 75%">&minus;30</span>
-          </div>
+          <!-- Filled from LADDER on boot: hardcoding the positions here meant
+               they silently disagreed with the rungs the moment either moved. -->
+          <div id="meter-ticks" class="meter-ticks"></div>
         </div>
 
         <div class="tape-controls">

@@ -56,6 +56,26 @@
   --gutter: 12px;
 }
 
+/**
+ * Which colour means "up" is a locale property, like a date format. Greater
+ * China reads red as rising and green as falling, so the whole palette flips
+ * with the interface language rather than asking anyone to choose. setLang()
+ * already stamps lang="zh-Hant" on the root, so this needs no extra state.
+ * Only the pos/neg pairs move; the chart's own neutrals stay put.
+ */
+:root:lang(zh-Hant) {
+  --pos: #c0271f;
+  --pos-fill: #b21d16;
+  --neg: #137a38;
+  --neg-fill: #116b32;
+  --pos-wash: rgba(192, 39, 31, 0.13);
+  --neg-wash: rgba(19, 122, 56, 0.13);
+  --pos-veil: rgba(192, 39, 31, 0.055);
+  --pos-veil-edge: rgba(192, 39, 31, 0.15);
+  --neg-veil: rgba(19, 122, 56, 0.055);
+  --neg-veil-edge: rgba(19, 122, 56, 0.15);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -700,15 +720,19 @@ main {
   table-layout: fixed;
 }
 
+/* The ladder carries seven rungs now. A tighter row keeps the whole working
+   surface — tape, chart, workbench — inside a 900px viewport, which the two
+   extra rungs at the old row height had just pushed past. The log table keeps
+   the roomier row: it is read afterwards, not scanned against the chart. */
 .alloc td {
-  padding: 8px 6px;
+  padding: 4px 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--ink-dim);
 }
 
 .alloc th {
-  padding: 8px 6px;
+  padding: 6px 6px;
   white-space: normal;
   line-height: 1.25;
   letter-spacing: 0.06em;

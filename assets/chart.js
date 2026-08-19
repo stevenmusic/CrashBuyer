@@ -34,6 +34,25 @@ const COLORS = {
   ground: token('--chart-ground', '#fbfaf9'),
 };
 
+/**
+ * The palette flips with the interface language — Greater China reads red as
+ * rising — so the resolved values go stale the moment someone switches. The
+ * page calls this before re-rendering rather than resolving on every draw,
+ * which would put ten getComputedStyle calls inside the pan loop.
+ */
+function refreshColors() {
+  COLORS.price = token('--chart-price', COLORS.price);
+  COLORS.peak = token('--chart-peak', COLORS.peak);
+  COLORS.grid = token('--chart-grid', COLORS.grid);
+  COLORS.axis = token('--chart-axis', COLORS.axis);
+  COLORS.episode = token('--neg-veil', COLORS.episode);
+  COLORS.episodeEdge = token('--neg-veil-edge', COLORS.episodeEdge);
+  COLORS.pointer = token('--accent', COLORS.pointer);
+  COLORS.buy = token('--pos', COLORS.buy);
+  COLORS.sell = token('--neg', COLORS.sell);
+  COLORS.ground = token('--chart-ground', COLORS.ground);
+}
+
 /** Never zoom in past this many bars — beyond it the line is just dots. */
 const MIN_VISIBLE = 8;
 
@@ -492,5 +511,9 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
     resizeFrame = requestAnimationFrame(() => render());
   }).observe(canvas);
 
-  return { render, resetView: () => { resetView(); render(); } };
+  return {
+    render,
+    resetView: () => { resetView(); render(); },
+    refreshPalette: () => { refreshColors(); render(); },
+  };
 }

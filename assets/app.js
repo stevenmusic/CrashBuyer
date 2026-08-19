@@ -8,6 +8,7 @@ import {
   buildLedger,
   portfolioAt,
   allocationRows,
+  LADDER,
   METER_FLOOR,
 } from './model.js';
 import { createChart } from './chart.js';
@@ -77,6 +78,7 @@ const dom = {
   curDd: el('cur-dd'),
   curPeak: el('cur-peak'),
   meterMarker: el('meter-marker'),
+  meterTicks: el('meter-ticks'),
   presets: el('presets'),
   alertsToggle: el('alerts-toggle'),
   alertsHint: el('alerts-hint'),
@@ -472,6 +474,18 @@ function resetAll() {
   render();
 }
 
+/** One tick per rung, placed on the same scale the marker uses. */
+function buildMeterTicks() {
+  dom.meterTicks.replaceChildren(
+    ...LADDER.map((rung) => {
+      const span = document.createElement('span');
+      span.style.left = `${(rung.drawdown / METER_FLOOR) * 100}%`;
+      span.textContent = `\u2212${Math.round(rung.drawdown * 100)}`;
+      return span;
+    })
+  );
+}
+
 function switchLang(lang) {
   setLang(lang);
   for (const button of dom.langSwitch.children) {
@@ -483,6 +497,9 @@ function switchLang(lang) {
   replayMessage();
   renderDataStatus();
   save();
+  // The palette follows the language, so the chart has to re-read its tokens
+  // before the next draw or buy/sell markers keep the outgoing convention.
+  chart?.refreshPalette();
   render();
 }
 
@@ -939,6 +956,7 @@ async function main() {
     button.setAttribute('aria-pressed', String(button.dataset.lang === getLang()));
   }
   applyStatic();
+  buildMeterTicks();
   dom.dataStatus.textContent = t('status.loading');
 
   manifest = await loadManifest();

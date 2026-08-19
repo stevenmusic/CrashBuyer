@@ -13,9 +13,11 @@ portfolio) over the performance board and the log.
 
 Chrome is neutral — warm stone ground, one slate-teal for emphasis — and colour
 is spent only where it means something. Buy/gain and sell/loss follow the
-international market convention (green up, red down); swapping the `--pos*` and
-`--neg*` blocks in `:root` gives the Greater China convention (red up, green
-down) with no other edit. Every foreground clears WCAG AA against its
+convention of whichever language is showing: green up and red down in English,
+red up and green down in 繁體中文, since that is as much a locale property as a
+date format. `setLang` stamps `lang="zh-Hant"` on the root and the
+`:root:lang(zh-Hant)` block swaps the `--pos*` and `--neg*` pairs; the chart
+resolves the same tokens rather than repeating them, so it follows. Every foreground clears WCAG AA against its
 background, most of it AAA, down to the 10px micro-caps labels.
 
 ## Running it
@@ -34,10 +36,18 @@ five rungs deploy the whole budget across a full crash:
 | Drawdown from peak | % invest | Amount on a $200,000 budget |
 | ------------------ | -------- | ------------------ |
 | −10%               | 10%      | $20,000            |
-| −15%               | 15%      | $30,000            |
-| −20%               | 20%      | $40,000            |
-| −25%               | 25%      | $50,000            |
-| −30%               | 30%      | $60,000            |
+| −15%               | 10%      | $20,000            |
+| −20%               | 15%      | $30,000            |
+| −25%               | 15%      | $30,000            |
+| −30%               | 15%      | $30,000            |
+| −40%               | 15%      | $30,000            |
+| −50%               | 20%      | $40,000            |
+
+The last two rungs hold 35% back for below −30%. The ladder used to stop there
+with the whole budget spent, which was sound while the series only reached back
+ten years and bottomed at −34%; over the full history SPY fell 56.5% into March
+2009 and QQQ 83% into October 2002, and stopping at −30% meant standing with an
+empty account through the cheapest half of both.
 
 The trigger price on each row is `peak-to-date × (1 − drawdown)` at the current day
 pointer. Rungs highlight once the index is that far down; **Use** loads the amount

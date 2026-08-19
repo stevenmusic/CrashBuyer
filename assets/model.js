@@ -3,19 +3,35 @@
 
 /**
  * Fixed drawdown ladder. Each rung says: once the index is this far below its
- * running peak, put this share of the ladder base to work. The five rungs add
- * up to 100%, so a full crash sequence deploys the whole planned amount.
+ * running peak, put this share of the ladder base to work. The rungs add up to
+ * 100%, so a full crash sequence deploys the whole planned amount.
+ *
+ * It used to stop at −30% with the whole budget spent there, which was sound
+ * while the series only went back ten years and bottomed at −34%. The history
+ * now reaches 2000: SPY fell 56.5% into March 2009 and QQQ 83% into October
+ * 2002. Stopping at −30% meant standing there with an empty account through the
+ * cheapest half of both crashes — the opposite of what this tool is arguing
+ * for. The last two rungs hold 35% back for below −30%, which costs some
+ * deployment speed in an ordinary correction and buys ammunition for a real one.
  */
 export const LADDER = [
   { drawdown: 0.1, invest: 0.1 },
-  { drawdown: 0.15, invest: 0.15 },
-  { drawdown: 0.2, invest: 0.2 },
-  { drawdown: 0.25, invest: 0.25 },
-  { drawdown: 0.3, invest: 0.3 },
+  { drawdown: 0.15, invest: 0.1 },
+  { drawdown: 0.2, invest: 0.15 },
+  { drawdown: 0.25, invest: 0.15 },
+  { drawdown: 0.3, invest: 0.15 },
+  { drawdown: 0.4, invest: 0.15 },
+  { drawdown: 0.5, invest: 0.2 },
 ];
 
-/** How deep the drawdown meter runs before it pins to the right edge. */
-export const METER_FLOOR = 0.4;
+/**
+ * How deep the drawdown meter runs before it pins to the right edge. Derived
+ * from the ladder rather than set independently: what the meter is really
+ * reporting is how much ladder is left, so its scale has to end where the
+ * ladder does. A little headroom past the last rung keeps the deepest marker
+ * off the very edge.
+ */
+export const METER_FLOOR = LADDER[LADDER.length - 1].drawdown * 1.2;
 
 /** Running maximum close, i.e. the peak-to-date at every index. */
 export function runningPeaks(closes) {
