@@ -237,84 +237,86 @@
       </div>
 
       <!-- ======================================================== performance -->
-      <section class="board">
-        <div class="board-head">
-          <h2 data-i18n="panel.performance">Performance</h2>
-          <span class="board-note" data-i18n="panel.performanceNote">on invested capital</span>
-        </div>
-        <div class="board-body">
-          <p id="perf-empty" class="perf-empty" data-i18n="perf.empty">
-            Log a trade to compare against buy &amp; hold.
-          </p>
-          <div id="perf-body" class="perf-grid" hidden>
-            <div class="perf-race">
-              <div class="race-row race-you">
-                <span class="race-name" data-i18n="perf.strategy">Your strategy</span>
-                <span class="race-track"><i id="perf-you-bar" class="race-bar"></i></span>
-                <b id="perf-you" class="race-value">—</b>
-                <i id="perf-you-pct" class="race-pct">—</i>
-              </div>
-              <div class="race-row">
-                <span class="race-name" data-i18n="perf.lump">Lump sum</span>
-                <span class="race-track"><i id="perf-lump-bar" class="race-bar"></i></span>
-                <b id="perf-lump" class="race-value">—</b>
-                <i id="perf-lump-pct" class="race-pct">—</i>
-              </div>
-              <div class="race-row">
-                <span class="race-name" data-i18n="perf.dca">Monthly DCA</span>
-                <span class="race-track"><i id="perf-dca-bar" class="race-bar"></i></span>
-                <b id="perf-dca" class="race-value">—</b>
-                <i id="perf-dca-pct" class="race-pct">—</i>
-              </div>
-              <div class="race-row race-excess">
-                <span class="race-name" data-i18n="perf.excess">vs lump sum</span>
-                <span class="race-track"></span>
-                <b id="perf-excess" class="race-value">—</b>
-                <i class="race-pct"></i>
-              </div>
-            </div>
-
-            <div class="stat-grid">
-              <div class="stat"><span data-i18n="perf.cagr">CAGR</span><b id="perf-cagr">—</b></div>
-              <div class="stat"><span data-i18n="perf.maxdd">Max Drawdown</span><b id="perf-maxdd">—</b></div>
-              <div class="stat"><span data-i18n="perf.vol">Volatility</span><b id="perf-vol">—</b></div>
-              <div class="stat"><span data-i18n="perf.sharpe">Sharpe</span><b id="perf-sharpe">—</b></div>
-              <div class="stat"><span data-i18n="perf.tim">Time in Market</span><b id="perf-tim">—</b></div>
-              <div class="stat"><span data-i18n="perf.span">Span</span><b id="perf-span">—</b></div>
-            </div>
+      <div class="ledger-row">
+  <section class="board">
+          <div class="board-head">
+            <h2 data-i18n="panel.performance">Performance</h2>
+            <span class="board-note" data-i18n="panel.performanceNote">on invested capital</span>
           </div>
-          <p class="board-foot" data-i18n="perf.foot"></p>
-        </div>
-      </section>
+          <div class="board-body">
+            <p id="perf-empty" class="perf-empty" data-i18n="perf.empty">
+              Log a trade to compare against buy &amp; hold.
+            </p>
+            <div id="perf-body" class="perf-grid" hidden>
+              <div class="perf-race">
+                <div class="race-row race-you">
+                  <span class="race-name" data-i18n="perf.strategy">Your strategy</span>
+                  <span class="race-track"><i id="perf-you-bar" class="race-bar"></i></span>
+                  <b id="perf-you" class="race-value">—</b>
+                  <i id="perf-you-pct" class="race-pct">—</i>
+                </div>
+                <div class="race-row">
+                  <span class="race-name" data-i18n="perf.lump">Lump sum</span>
+                  <span class="race-track"><i id="perf-lump-bar" class="race-bar"></i></span>
+                  <b id="perf-lump" class="race-value">—</b>
+                  <i id="perf-lump-pct" class="race-pct">—</i>
+                </div>
+                <div class="race-row">
+                  <span class="race-name" data-i18n="perf.dca">Monthly DCA</span>
+                  <span class="race-track"><i id="perf-dca-bar" class="race-bar"></i></span>
+                  <b id="perf-dca" class="race-value">—</b>
+                  <i id="perf-dca-pct" class="race-pct">—</i>
+                </div>
+                <div class="race-row race-excess">
+                  <span class="race-name" data-i18n="perf.excess">vs lump sum</span>
+                  <span class="race-track"></span>
+                  <b id="perf-excess" class="race-value">—</b>
+                  <i class="race-pct"></i>
+                </div>
+              </div>
 
-      <!-- ================================================================ log -->
-      <section class="board">
-        <div class="board-head">
-          <h2 data-i18n="panel.log">Transaction Log</h2>
-          <span id="log-count" class="board-note">0 trades logged</span>
-        </div>
-        <div class="table-scroll">
-          <table class="grid log">
-            <thead>
-              <tr>
-                <th class="num" data-i18n="col.num">#</th>
-                <th class="num" data-i18n="col.day">Day</th>
-                <th data-i18n="col.date">Date</th>
-                <th class="num" data-i18n="col.price">Price</th>
-                <th data-i18n="col.action">Action</th>
-                <th class="num" data-i18n="col.units">Units</th>
-                <th class="num" data-i18n="col.amount">Amount</th>
-                <th class="num" data-i18n="col.unitsAfter">Units After</th>
-                <th class="num" data-i18n="col.investedAfter">Invested After</th>
-                <th class="num" data-i18n="col.valueAfter">Value After</th>
-                <th data-i18n="col.notes">Notes</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="log-body"></tbody>
-          </table>
-        </div>
-      </section>
+              <div class="stat-grid">
+                <div class="stat"><span data-i18n="perf.cagr">CAGR</span><b id="perf-cagr">—</b></div>
+                <div class="stat"><span data-i18n="perf.maxdd">Max Drawdown</span><b id="perf-maxdd">—</b></div>
+                <div class="stat"><span data-i18n="perf.vol">Volatility</span><b id="perf-vol">—</b></div>
+                <div class="stat"><span data-i18n="perf.sharpe">Sharpe</span><b id="perf-sharpe">—</b></div>
+                <div class="stat"><span data-i18n="perf.tim">Time in Market</span><b id="perf-tim">—</b></div>
+                <div class="stat"><span data-i18n="perf.span">Span</span><b id="perf-span">—</b></div>
+              </div>
+            </div>
+            <p class="board-foot" data-i18n="perf.foot"></p>
+          </div>
+        </section>
+
+        <!-- ================================================================ log -->
+        <section class="board">
+          <div class="board-head">
+            <h2 data-i18n="panel.log">Transaction Log</h2>
+            <span id="log-count" class="board-note">0 trades logged</span>
+          </div>
+          <div class="table-scroll">
+            <table class="grid log">
+              <thead>
+                <tr>
+                  <th class="num" data-i18n="col.num">#</th>
+                  <th class="num" data-i18n="col.day">Day</th>
+                  <th data-i18n="col.date">Date</th>
+                  <th class="num" data-i18n="col.price">Price</th>
+                  <th data-i18n="col.action">Action</th>
+                  <th class="num" data-i18n="col.units">Units</th>
+                  <th class="num" data-i18n="col.amount">Amount</th>
+                  <th class="num" data-i18n="col.unitsAfter">Units After</th>
+                  <th class="num" data-i18n="col.investedAfter">Invested After</th>
+                  <th class="num" data-i18n="col.valueAfter">Value After</th>
+                  <th data-i18n="col.notes">Notes</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="log-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </main>
 
     <footer class="footer">

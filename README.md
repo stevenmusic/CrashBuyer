@@ -49,7 +49,9 @@ derives from it.
 
 - **Day pointer** drives everything. Move it with the arrows, the number box, the
   ← / → keys (hold Shift for 20 bars), the crash preset buttons, or by clicking
-  and dragging on the chart. Presets outside the loaded range are hidden.
+  (or tapping) the chart. Dragging is a different gesture: it pans the visible
+  window and leaves the pointer where it is. Presets outside the loaded range
+  are hidden.
 - **Units are fractional**: `units = amount / close`, exactly, with no minimum lot.
 - **The portfolio only counts trades that have already happened** — trades dated after
   the day pointer are listed but greyed out, so rewinding to 2018 never shows units

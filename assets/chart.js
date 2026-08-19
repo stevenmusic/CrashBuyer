@@ -8,18 +8,30 @@ import { t } from './i18n.js';
 const PAD = { top: 12, right: 12, bottom: 24, left: 56 };
 const Y_TICKS = 5; // 5 intervals -> 6 labels, matching the reference layout.
 
+/**
+ * Read from the stylesheet rather than repeated here. These were duplicated as
+ * literals identical to --pos and --neg, which quietly broke the one edit the
+ * palette is documented to support: swapping the pos and neg blocks for the
+ * Greater China convention (red up, green down) flipped the whole interface
+ * except the chart, leaving buy dots green on a page where green meant down.
+ *
+ * Resolved once at module load; nothing changes these at runtime.
+ */
+const token = (name, fallback) =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
 const COLORS = {
-  price: '#3c5a68',
-  peak: '#9c948a',
-  grid: '#e2ded8',
-  axis: '#6b655c',
-  episode: 'rgba(192, 39, 31, 0.055)',
-  episodeEdge: 'rgba(192, 39, 31, 0.15)',
-  pointer: '#2d6e69',
-  buy: '#137a38',
-  sell: '#c0271f',
+  price: token('--chart-price', '#3c5a68'),
+  peak: token('--chart-peak', '#9c948a'),
+  grid: token('--chart-grid', '#e2ded8'),
+  axis: token('--chart-axis', '#6b655c'),
+  episode: token('--neg-veil', 'rgba(192, 39, 31, 0.055)'),
+  episodeEdge: token('--neg-veil-edge', 'rgba(192, 39, 31, 0.15)'),
+  pointer: token('--accent', '#2d6e69'),
+  buy: token('--pos', '#137a38'),
+  sell: token('--neg', '#c0271f'),
   // Marker haloes punch back to the panel ground.
-  ground: '#fbfaf9',
+  ground: token('--chart-ground', '#fbfaf9'),
 };
 
 /** Never zoom in past this many bars — beyond it the line is just dots. */

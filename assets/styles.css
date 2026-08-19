@@ -32,6 +32,20 @@
   --neg-fill: #b21d16;
   --pos-wash: rgba(19, 122, 56, 0.13);
   --neg-wash: rgba(192, 39, 31, 0.13);
+  /* Faint tints the chart shades drawdown episodes with. They live in the
+     pos/neg group so swapping those two blocks for the Greater China
+     convention carries the chart with it. */
+  --pos-veil: rgba(19, 122, 56, 0.055);
+  --pos-veil-edge: rgba(19, 122, 56, 0.15);
+  --neg-veil: rgba(192, 39, 31, 0.055);
+  --neg-veil-edge: rgba(192, 39, 31, 0.15);
+
+  /* Chart-only neutrals, which carry no up/down meaning and never swap. */
+  --chart-price: #3c5a68;
+  --chart-peak: #9c948a;
+  --chart-grid: #e2ded8;
+  --chart-axis: #6b655c;
+  --chart-ground: #fbfaf9;
 
   --shadow: rgba(48, 42, 34, 0.12);
 
@@ -271,6 +285,22 @@ main {
   align-items: start;
 }
 
+/* The two review panels are read after the fact, not while trading, so they
+   pair up on one row and keep the working surface above the fold. They stack
+   again below 1100px, where two columns would squeeze the log's table. */
+.ledger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--gutter);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .ledger-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* ===================================================================== tape */
 
 .tape {
@@ -278,7 +308,7 @@ main {
   border-radius: 4px;
   background: var(--surface);
   box-shadow: 0 1px 2px var(--shadow);
-  padding: 12px 16px 14px;
+  padding: 10px 16px 11px;
 }
 
 .tape-readouts {
@@ -866,7 +896,10 @@ main {
 
 .chart-wrap {
   position: relative;
-  height: 340px;
+  /* Follows the viewport instead of a fixed 340px, which is what lets the whole
+     workbench land on one screen on a tall display without squeezing the plot
+     into a strip on a short one. */
+  height: clamp(230px, 32vh, 340px);
   padding: 10px 8px 0;
 }
 
@@ -1199,7 +1232,7 @@ main {
   gap: 8px 16px;
   max-width: 1640px;
   margin: 0 auto;
-  padding: 0 16px 24px;
+  padding: 0 16px 14px;
   color: var(--ink-faint);
   font-size: 11px;
 }
