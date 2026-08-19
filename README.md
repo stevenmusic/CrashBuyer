@@ -98,6 +98,7 @@ simply absent rather than 404-ing at runtime.
 | SPY        | Tiingo, falling back to stockanalysis   | free Tiingo key, or none |
 | VOO / IVV  | same                                    | same                   |
 | QQQ        | same (Nasdaq 100, not the S&P)          | same                   |
+| CSPX       | justETF, by ISIN, in USD                | none                   |
 
 Daily bars only. A monthly long history (Shiller, back to 1871) was tried and
 removed: averaging a month of closes hides exactly the intramonth collapses this
@@ -184,26 +185,27 @@ The picker in the command bar switches series. **Each instrument keeps its own
 book** — trades, day pointer and all — so comparing SPY against the index never
 mixes the two. Ladder base, language, log scale and alerts are shared.
 
-London-listed accumulating trackers such as CSPX are absent, and moving to
-Tiingo did not change that. Measured from CI: Tiingo answers `CSPX`, `CSPX.L`,
-`CSP1`, `SXR8` and `SXR8.DE` with "Ticker not found" on a key that fetches IVV
-in the same run; Twelve Data puts the London and Xetra lines behind its Grow or
-Pro plans; stockanalysis.com has no London route; stooq still serves a robots
-page. So it is a paid symbol on every source the fetcher can reach.
+CSPX, the London-listed accumulating UCITS tracker, comes from justETF rather
+than any of the above: it is keyed by ISIN, needs no key at all, and serves the
+currency asked for, so this takes USD and the London line rather than the EUR
+Xetra one. Everything else refuses. Measured from CI: Tiingo answers `CSPX`,
+`CSPX.L`, `CSP1`, `SXR8` and `SXR8.DE` with "Ticker not found" on a key that
+fetches IVV in the same run; Twelve Data gates the London and Xetra lines behind
+its Grow or Pro plans; the iShares product page answers its own `.ajax` file
+links with HTML; Boerse Frankfurt's `price_history` returns an empty object;
+Yahoo 429s across the runner range; stooq serves a robots page. There is no
+second source, so that instrument names its route and does not fall back.
 
-Even with a key, CSPX would not belong beside the others as a plain sixth entry.
-It accumulates — dividends are reinvested inside the fund, so its price already
-contains them — while SPY, VOO and IVV distribute and the fetcher deliberately
-keeps the raw close so the series reads as a price index. Comparing the two in
-one picker would put a total-return series next to price-return ones and credit
-CSPX with roughly its dividend yield, compounded, as if it were outperformance.
-Within CSPX alone the simulation would be sound; across instruments it would
-not. It also only lists from May 2010, so it cannot reach either of the crashes
-this tool most exists for.
-
-IVV is the same fund — iShares Core S&P 500 — in its US, distributing form, and
-the ladder triggers on drawdown from a running peak, which the two share closely.
-It reaches back to 2000-05 and is already in the picker.
+**CSPX accumulates**, and the page says so beneath the chart. Its dividends are
+reinvested inside the fund, so its price is a total-return series, while SPY,
+VOO and IVV distribute and the fetcher keeps the raw close on purpose. Over the
+window they share, 2010-05-19 to 2026-08-18, CSPX runs 8.78x against SPY's
+6.87x — a gap of 1.28x, or 1.52%/yr, which is the index dividend yield rather
+than outperformance. Drawdowns and the ladder read the same either way (CSPX
+bottoms at −33.86% in the Covid crash against the index's −33.92%), so it is
+comparable against itself but not against the others. It also only lists from
+May 2010, so it reaches neither 2000 nor 2008; IVV is the same fund in its US,
+distributing form, with history back to 2000-05.
 
 ## Language
 

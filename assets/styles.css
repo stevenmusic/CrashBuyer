@@ -160,6 +160,10 @@ body {
 }
 
 .cmd-ticker {
+  /* A select sizes itself to its longest option, so adding CSPX's longer label
+     widened it past a 320px phone and gave the page a sideways scroll. Let the
+     label shrink and the select truncate instead. */
+  min-width: 0;
   padding-left: 12px;
   border-left: 1px solid var(--line);
   color: var(--accent-deep);
@@ -1390,6 +1394,7 @@ main {
 /* Instrument picker sits where the static ticker label used to be. */
 
 .ticker-select {
+  max-width: 100%;
   height: 26px;
   padding: 0 24px 0 8px;
   border: 1px solid var(--line);
