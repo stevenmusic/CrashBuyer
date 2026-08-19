@@ -22,6 +22,15 @@ const DATA_DIR = resolve(ROOT, 'data');
  * London-listed accumulating trackers such as CSPX are deliberately absent:
  * that endpoint only covers US listings, so they would 404.
  */
+/**
+ * Which instrument the picker opens on. The index is the honest answer but FRED
+ * only serves a rolling ten years, so it cannot reach the two crashes this tool
+ * most exists for — 2000 and 2008. SPY carries the same percentages back to
+ * 2000 and is labelled a proxy in the UI, so it opens instead. Falls back to
+ * whatever did download if SPY failed today.
+ */
+const DEFAULT_ID = 'spy';
+
 const INSTRUMENTS = [
   { id: 'sp500', symbol: '^GSPC', name: 'S&P 500', kind: 'index', proxy: false },
   { id: 'spy', symbol: 'SPY', name: 'SPY · SPDR S&P 500', kind: 'etf', proxy: true },
@@ -418,7 +427,8 @@ async function main() {
 
   // The manifest is what the page reads to build its picker, so an instrument
   // that failed today simply does not appear rather than 404-ing at runtime.
-  const manifest = { updatedAt: new Date().toISOString(), default: available[0].id, instruments: available };
+  const preferred = available.some((a) => a.id === DEFAULT_ID) ? DEFAULT_ID : available[0].id;
+  const manifest = { updatedAt: new Date().toISOString(), default: preferred, instruments: available };
   await writeFile(resolve(DATA_DIR, 'instruments.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log(`[fetch] manifest: ${available.map((a) => a.id).join(', ')} (default ${manifest.default})`);
 }

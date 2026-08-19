@@ -1,8 +1,8 @@
 # CrashBuyer — Crash Buying Simulator · S&P 500
 
-Rewind the S&P 500 across ten years of daily closes, buy the crashes with a fixed
-drawdown allocation ladder, and see what the portfolio is worth today. English
-and 繁體中文.
+Rewind the S&P 500 across a quarter-century of daily closes, buy the crashes with
+a fixed drawdown allocation ladder, and see what the portfolio is worth today.
+English and 繁體中文.
 
 A static page: plain HTML, CSS and ES modules, no build step, no dependencies, no
 external requests at runtime beyond an optional live price top-up.
@@ -80,12 +80,12 @@ Prices are index closes: no dividends, fees, taxes or slippage. Educational only
 manifest is written by the fetcher, so an instrument that failed to download is
 simply absent rather than 404-ing at runtime.
 
-| Instrument | Source                                | Key                 |
-| ---------- | ------------------------------------- | ------------------- |
-| ^GSPC      | FRED `SP500` — real index levels      | free FRED key       |
-| SPY        | stockanalysis.com, or Alpha Vantage   | none, or free AV key|
-| VOO / IVV  | same                                  | same                |
-| QQQ        | same (Nasdaq 100, not the S&P)        | same                |
+| Instrument | Source                                  | Key                    |
+| ---------- | --------------------------------------- | ---------------------- |
+| ^GSPC      | FRED `SP500` — real index levels        | free FRED key          |
+| SPY        | Tiingo, falling back to stockanalysis   | free Tiingo key, or none |
+| VOO / IVV  | same                                    | same                   |
+| QQQ        | same (Nasdaq 100, not the S&P)          | same                   |
 
 Daily bars only. A monthly long history (Shiller, back to 1871) was tried and
 removed: averaging a month of closes hides exactly the intramonth collapses this
@@ -93,28 +93,44 @@ tool exists to show — October 1987 flattens from −20% in a session to about 
 — and a chart mixing resolutions invites comparing a smoothed 1930s with a
 jagged 2020s.
 
-### How far back — about ten years, and that is a hard ceiling
+### How far back — 2000 for the ETFs, ten years for the index
 
-Every free route measured so far tops out at a decade:
+Depth on each free tier, measured from a CI runner rather than assumed:
 
-| Route                          | Depth on the free tier                         |
-| ------------------------------ | ---------------------------------------------- |
+| Route                          | Depth on the free tier                          |
+| ------------------------------ | ----------------------------------------------- |
+| Tiingo                         | **back to listing** — 6696 SPY bars from 2000-01-03 |
+| Twelve Data                    | `outputsize` caps at 5000 bars, so only to 2006 |
 | FRED `SP500`                   | rolling 10 years, and it rolls forward daily    |
 | stockanalysis.com              | silently caps at `10Y` — longer ranges return 1 |
 | Alpha Vantage                  | last 100 bars; `outputsize=full` is **paid**    |
 
-The Alpha Vantage path is implemented and would work unchanged with a paid key,
-but a free one buys nothing: it answers `outputsize=full` with "this is a premium
-feature" and the fetcher falls back. `START_FROM` in the fetcher sets a floor of
-2000-01-01, so a source that could reach it would be used — none currently can.
+`START_FROM` in the fetcher sets a floor of 2000-01-01. Tiingo reaches it, so the
+ETFs now start there — or at their own listing date, which is why VOO begins in
+2010 and IVV in 2000-05. The Alpha Vantage path is kept because a paid key would
+work unchanged, but a free one answers `outputsize=full` with "this is a premium
+feature" and the fetcher falls back.
 
-Because FRED's window rolls, the index start date moves forward every day and
-cannot be pinned to a fixed year.
+The index is the exception. Tiingo's free tier covers stocks and ETFs but not
+indices, so ^GSPC still comes from FRED's rolling ten-year window — its start
+date moves forward every day and cannot be pinned to a fixed year. That is why
+the picker opens on SPY: the same percentages, but far enough back to reach 2000
+and 2008.
+
+Tiingo's raw `close` carries splits and its `adjClose` folds in dividends, so
+neither suits a price chart. The fetcher undoes splits only, accumulating
+`splitFactor` from the newest bar backwards — QQQ split 2:1 in March 2000, inside
+the window, where a raw series would show a one-day halving this simulator cannot
+tell from a crash.
 
 [av]: https://www.alphavantage.co/support/#api-key
 
-For real index levels rather than the SPY proxy, add a free [FRED key][fred] as
-`FRED_API_KEY`. Both go under **Settings → Secrets and variables → Actions**.
+For ETF history back to 2000, add a free [Tiingo key][tiingo] as `TIINGO_API_KEY`;
+without it the ETFs fall back to stockanalysis.com's ten-year ceiling. For real
+index levels rather than the SPY proxy, add a free [FRED key][fred] as
+`FRED_API_KEY`. All go under **Settings → Secrets and variables → Actions**.
+
+[tiingo]: https://www.tiingo.com/account/api/token
 
 [fred]: https://fredaccount.stlouisfed.org/apikeys
 
@@ -138,8 +154,8 @@ answers on `/s/` but 400s on `/i/` for every index symbol;
 
 ```sh
 node scripts/fetch-sp500.mjs                      # ETFs only, ~10 years
+TIINGO_API_KEY=... node scripts/fetch-sp500.mjs   # + ETFs back to 2000
 FRED_API_KEY=... node scripts/fetch-sp500.mjs     # + ^GSPC index levels
-ALPHAVANTAGE_API_KEY=... node scripts/fetch-sp500.mjs   # + ETFs back to ~1999
 ```
 
 ## Instruments
