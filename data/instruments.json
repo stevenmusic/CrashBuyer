@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-08-19T17:39:47.423Z",
-  "default": "sp500",
+  "updatedAt": "2026-08-19T17:46:22.079Z",
+  "default": "spy",
   "instruments": [
     {
       "id": "sp500",
