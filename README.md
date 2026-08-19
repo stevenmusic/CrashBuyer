@@ -111,11 +111,19 @@ ETFs now start there — or at their own listing date, which is why VOO begins i
 work unchanged, but a free one answers `outputsize=full` with "this is a premium
 feature" and the fetcher falls back.
 
-The index is the exception. Tiingo's free tier covers stocks and ETFs but not
-indices, so ^GSPC still comes from FRED's rolling ten-year window — its start
-date moves forward every day and cannot be pinned to a fixed year. That is why
-the picker opens on SPY: the same percentages, but far enough back to reach 2000
-and 2008.
+The index is the exception, and the wall is a licence rather than an API limit.
+Tiingo's free tier carries no index symbols, Twelve Data answers SPX with "this
+symbol is available starting with the Grow plan", and FRED's `SP500` stays on its
+rolling ten-year window — as does `DJIA`, the other S&P Dow Jones Indices series,
+while `NASDAQCOM` on the same endpoint returns its full history. So ^GSPC starts
+wherever FRED's window currently begins, and that start date moves forward every
+day.
+
+That is why the picker opens on SPY. Over the ten years the two overlap, SPY
+tracks the index to within 1.0 percentage point of total return (251.2% against
+252.2%) and 0.18 of a point of maximum drawdown (34.10% against 33.92%), with a
+daily-return correlation of 0.997 — and every number this tool shows except the
+raw price level is a percentage.
 
 Tiingo's raw `close` carries splits and its `adjClose` folds in dividends, so
 neither suits a price chart. The fetcher undoes splits only, accumulating
