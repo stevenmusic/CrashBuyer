@@ -15,8 +15,9 @@ const DATA_DIR = resolve(ROOT, 'data');
 
 /**
  * Instruments offered in the picker. The index needs a free FRED key; the ETFs
- * come from stockanalysis.com, which serves `/s/` (stocks and ETFs) without one
- * but 400s on `/i/` for every index symbol.
+ * prefer a free TIINGO_API_KEY, which reaches 2000, and fall back to
+ * stockanalysis.com, which serves `/s/` (stocks and ETFs) without a key but
+ * 400s on `/i/` for every index symbol and caps history at ten years.
  *
  * London-listed accumulating trackers such as CSPX are deliberately absent:
  * that endpoint only covers US listings, so they would 404.
@@ -186,6 +187,48 @@ async function fromAlphaVantage(symbol) {
   return rows;
 }
 
+/**
+ * Tiingo's EOD API. A free key reaches back to listing — measured in CI at 6696
+ * SPY bars from 2000-01-03, against stockanalysis.com's hard 10-year ceiling —
+ * which is the whole reason this source exists. It covers stocks and ETFs but
+ * not indices, so the S&P 500 itself still comes from FRED.
+ *
+ * `close` is the raw as-reported close and `adjClose` folds in dividends, so
+ * neither is what this chart wants. Splits alone are undone here: a 2:1 split
+ * left in a raw series reads as a one-day halving, indistinguishable from the
+ * crashes this tool exists to show. QQQ split 2:1 in March 2000, inside the
+ * window, so this is load-bearing rather than defensive.
+ */
+async function fromTiingo(symbol) {
+  const url =
+    `https://api.tiingo.com/tiingo/daily/${encodeURIComponent(symbol.toLowerCase())}/prices` +
+    `?startDate=${START_FROM}&token=${encodeURIComponent(process.env.TIINGO_API_KEY)}`;
+  const json = await (await get(url, 'application/json')).json();
+  if (!Array.isArray(json)) throw new Error(`unexpected payload: ${JSON.stringify(json).slice(0, 80)}`);
+
+  const bars = [];
+  for (const bar of json) {
+    const date = String(bar?.date ?? '').slice(0, 10);
+    const close = Number(bar?.close);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(close) || close <= 0) continue;
+    const split = Number(bar?.splitFactor);
+    bars.push([date, close, Number.isFinite(split) && split > 0 ? split : 1]);
+  }
+  bars.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+
+  // Walk newest to oldest accumulating split factors, so each bar is divided by
+  // the splits that happened after it. The factor is reported on the split's
+  // effective day, so it applies to every earlier bar but not to that one.
+  const rows = [];
+  let cumulative = 1;
+  for (let i = bars.length - 1; i >= 0; i--) {
+    const [date, close, split] = bars[i];
+    rows.push([date, close / cumulative]);
+    cumulative *= split;
+  }
+  return rows;
+}
+
 async function fromStockAnalysis(symbol) {
   const url = `https://stockanalysis.com/api/symbol/s/${symbol.toLowerCase()}/history?range=10Y&period=Day`;
   const json = await (await get(url, 'application/json')).json();
@@ -306,6 +349,17 @@ async function fetchInstrument(instrument) {
     const rows = normalise(await fromFred());
     if (rows.length < 500) throw new Error(`only ${rows.length} rows`);
     return { payload: pack(rows, { ...instrument, source: 'fred' }) };
+  }
+  // Tiingo first when configured: the same instrument back to 2000 instead of
+  // the ten years stockanalysis.com caps at.
+  if (process.env.TIINGO_API_KEY) {
+    try {
+      const rows = normalise(await fromTiingo(instrument.symbol));
+      if (rows.length >= 500) return { payload: pack(rows, { ...instrument, source: 'tiingo' }) };
+      console.warn(`[fetch] ${instrument.id} tiingo returned ${rows.length} rows, falling back`);
+    } catch (err) {
+      console.warn(`[fetch] ${instrument.id} tiingo failed — ${err.message}, falling back`);
+    }
   }
   // Alpha Vantage first when configured: same instrument, decades more history.
   if (process.env.ALPHAVANTAGE_API_KEY) {
