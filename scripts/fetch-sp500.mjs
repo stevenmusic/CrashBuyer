@@ -37,6 +37,24 @@ const INSTRUMENTS = [
   { id: 'voo', symbol: 'VOO', name: 'VOO · Vanguard S&P 500', kind: 'etf', proxy: true },
   { id: 'ivv', symbol: 'IVV', name: 'IVV · iShares Core S&P 500', kind: 'etf', proxy: true },
   { id: 'qqq', symbol: 'QQQ', name: 'QQQ · Invesco Nasdaq 100', kind: 'etf', proxy: true },
+  {
+    id: 'cspx',
+    symbol: 'CSPX',
+    name: 'CSPX · iShares Core S&P 500 UCITS',
+    kind: 'etf',
+    proxy: true,
+    // Not on any US-listing feed: Tiingo answers "Ticker not found" for every
+    // spelling and Twelve Data gates the London line behind a paid plan.
+    // justETF serves it by ISIN with no key, in whichever currency is asked
+    // for — USD here, so the London line rather than the EUR Xetra one.
+    isin: 'IE00B5BMR087',
+    via: 'justetf',
+    // The one that has to be labelled: CSPX reinvests its dividends inside the
+    // fund, so its price is a total-return series while SPY, VOO and IVV quote
+    // price only. Over the window they share, 2010-05-19 to 2026-08-18, that is
+    // 8.78x against SPY's 6.87x — 1.52%/yr that is dividends, not skill.
+    accumulating: true,
+  },
 ];
 
 const fileFor = (id) => resolve(DATA_DIR, `${id}.json`);
@@ -238,6 +256,31 @@ async function fromTiingo(symbol) {
   return rows;
 }
 
+/**
+ * justETF, keyed by ISIN and key-less. The only free route to a UCITS tracker
+ * measured from CI: the issuer's own files answer with the product page rather
+ * than a CSV, Boerse Frankfurt's history endpoint returns an empty object,
+ * Yahoo 429s across the runner range and stooq serves its robots page.
+ *
+ * `valuesType=NET_ASSET_VALUE` comes back empty, so this asks for market value
+ * — the quoted price, which is what the rest of the series are anyway.
+ */
+async function fromJustEtf(isin) {
+  const url =
+    `https://www.justetf.com/api/etfs/${encodeURIComponent(isin)}/performance-chart` +
+    '?locale=en&currency=USD&valuesType=MARKET_VALUE&reduceData=false&includeDividends=false';
+  const json = await (await get(url, 'application/json')).json();
+  if (!Array.isArray(json?.series)) throw new Error(`unexpected payload: ${JSON.stringify(json).slice(0, 80)}`);
+
+  const rows = [];
+  for (const bar of json.series) {
+    const date = String(bar?.date ?? '');
+    const close = Number(bar?.value?.raw);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(close) && close > 0) rows.push([date, close]);
+  }
+  return rows;
+}
+
 async function fromStockAnalysis(symbol) {
   const url = `https://stockanalysis.com/api/symbol/s/${symbol.toLowerCase()}/history?range=10Y&period=Day`;
   const json = await (await get(url, 'application/json')).json();
@@ -359,6 +402,14 @@ async function fetchInstrument(instrument) {
     if (rows.length < 500) throw new Error(`only ${rows.length} rows`);
     return { payload: pack(rows, { ...instrument, source: 'fred' }) };
   }
+  // An instrument that names its own route takes it; there is no second source
+  // for a UCITS listing to fall back to.
+  if (instrument.via === 'justetf') {
+    const rows = normalise(await fromJustEtf(instrument.isin));
+    if (rows.length < 500) throw new Error(`only ${rows.length} rows`);
+    return { payload: pack(rows, { ...instrument, source: 'justetf' }) };
+  }
+
   // Tiingo first when configured: the same instrument back to 2000 instead of
   // the ten years stockanalysis.com caps at.
   if (process.env.TIINGO_API_KEY) {
@@ -406,6 +457,7 @@ async function main() {
         symbol: instrument.symbol,
         name: instrument.name,
         proxy: instrument.proxy,
+        accumulating: Boolean(instrument.accumulating),
         start: payload.start,
         end: payload.end,
         count: payload.count,

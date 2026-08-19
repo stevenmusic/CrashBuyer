@@ -141,6 +141,11 @@ const STRINGS = {
     'proxy.note': (symbol) =>
       `Prices are ${symbol}, an ETF tracking the index — roughly a tenth of the index level. ` +
       'Drawdowns, the allocation ladder and returns are unaffected. Pick S&P 500 above for index levels.',
+    'accumulating.note': (symbol) =>
+      `${symbol} accumulates: its dividends are reinvested inside the fund, so its price already ` +
+      'contains them, while SPY, VOO and IVV quote price alone. Drawdowns and the ladder read the ' +
+      'same, but its returns run about 1.5%/yr above theirs on dividends rather than performance — ' +
+      'compare it against itself, not against them.',
 
     'panel.performance': 'Performance',
     'panel.performanceNote': 'on invested capital',
@@ -303,6 +308,10 @@ const STRINGS = {
     'proxy.note': (symbol) =>
       `價格為 ${symbol}，追蹤該指數的 ETF——大約是指數點位的十分之一。` +
       '跌幅、配置階梯與報酬率都不受影響。想看指數點位，在上方切換成 S&P 500 即可。',
+    'accumulating.note': (symbol) =>
+      `${symbol} 是累積型：股息在基金內部再投入，價格本身已含息，而 SPY、VOO、IVV 只報純價格。` +
+      '跌幅與配置階梯的讀法相同，但它的報酬率會比那幾檔每年高約 1.5%——那是股息，不是績效。' +
+      '請拿它跟自己比，不要跟那幾檔並列比較。',
 
     'panel.performance': '績效',
     'panel.performanceNote': '以累計投入為基準',

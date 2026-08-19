@@ -856,6 +856,7 @@ function applyInstrumentLabels() {
 
   const notes = [];
   if (series.proxy) notes.push(t('proxy.note', series.symbol));
+  if (series.accumulating) notes.push(t('accumulating.note', series.symbol));
 
   const footer = document.querySelector('.footer');
   for (const text of notes.reverse()) {
