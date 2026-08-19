@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-19T17:46:22.079Z",
+  "updatedAt": "2026-08-19T19:52:05.933Z",
   "default": "spy",
   "instruments": [
     {
@@ -7,6 +7,7 @@
       "symbol": "^GSPC",
       "name": "S&P 500",
       "proxy": false,
+      "accumulating": false,
       "start": "2016-08-19",
       "end": "2026-08-18",
       "count": 2512
@@ -16,6 +17,7 @@
       "symbol": "SPY",
       "name": "SPY · SPDR S&P 500",
       "proxy": true,
+      "accumulating": false,
       "start": "2000-01-03",
       "end": "2026-08-18",
       "count": 6696
@@ -25,6 +27,7 @@
       "symbol": "VOO",
       "name": "VOO · Vanguard S&P 500",
       "proxy": true,
+      "accumulating": false,
       "start": "2010-09-09",
       "end": "2026-08-18",
       "count": 4009
@@ -34,6 +37,7 @@
       "symbol": "IVV",
       "name": "IVV · iShares Core S&P 500",
       "proxy": true,
+      "accumulating": false,
       "start": "2000-05-19",
       "end": "2026-08-18",
       "count": 6600
@@ -43,9 +47,20 @@
       "symbol": "QQQ",
       "name": "QQQ · Invesco Nasdaq 100",
       "proxy": true,
+      "accumulating": false,
       "start": "2000-01-03",
       "end": "2026-08-18",
       "count": 6696
+    },
+    {
+      "id": "cspx",
+      "symbol": "CSPX",
+      "name": "CSPX · iShares Core S&P 500 UCITS",
+      "proxy": true,
+      "accumulating": true,
+      "start": "2010-05-19",
+      "end": "2026-08-18",
+      "count": 5936
     }
   ]
 }
