@@ -30,6 +30,9 @@ jobs:
         # no key but quotes ~1/10 of the index level.
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          # Optional but wanted: a free Tiingo key takes the ETFs back to 2000.
+          # Without it they fall back to stockanalysis.com's ten-year ceiling.
+          TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
           # Only useful with a PAID key: `outputsize=full` is a paid feature, so
           # a free key still returns the last 100 bars and the script falls back.
           ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
