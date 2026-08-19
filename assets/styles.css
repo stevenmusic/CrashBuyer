@@ -1305,6 +1305,13 @@ main {
 }
 
 @media (max-width: 860px) {
+  /* Below this the board head has to share its row with the legend chips, and
+     the descriptive half of the name is already in the picker and the data
+     line. The ticker alone carries the heading. */
+  .title-rest {
+    display: none;
+  }
+
   .workbench {
     grid-template-columns: minmax(0, 1fr);
   }

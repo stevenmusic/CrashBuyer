@@ -846,10 +846,31 @@ function bindEvents() {
  * SPY ETF instead. Name the instrument from the data rather than hardcoding it,
  * and disclose both the ETF substitution and the monthly-average resolution.
  */
+/**
+ * Instrument names carry their descriptive half after a middle dot — "CSPX ·
+ * iShares Core S&P 500 UCITS". The board head splits it in two so CSS can drop
+ * the descriptive part on a narrow screen, where it ran the title to a board's
+ * full width to repeat what the picker directly above was already showing, and
+ * keep it where there is room for it.
+ */
+const splitName = (name) => {
+  const cut = name.indexOf(' · ');
+  return cut < 0 ? [name, ''] : [name.slice(0, cut), name.slice(cut)];
+};
+
 function applyInstrumentLabels() {
   const name = series.name ?? 'S&P 500';
   document.querySelector('.brand-sub').textContent = name;
-  dom.chartTitle.textContent = t('panel.chart', name);
+
+  const [lead, rest] = splitName(name);
+  const leadEl = document.createElement('span');
+  leadEl.className = 'title-lead';
+  leadEl.textContent = lead;
+  const restEl = document.createElement('span');
+  restEl.className = 'title-rest';
+  restEl.textContent = rest + t('panel.chartSuffix');
+  dom.chartTitle.replaceChildren(leadEl, restEl);
+
   document.title = t('app.title', name);
 
   for (const node of document.querySelectorAll('.footer-note')) node.remove();

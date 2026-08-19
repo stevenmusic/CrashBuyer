@@ -10,6 +10,7 @@ export const DEFAULT_LANG = 'en';
 const STRINGS = {
   en: {
     'app.title': (name) => `Crash Buying Simulator · ${name}`,
+    'panel.chartSuffix': ' · Historical Price',
     'app.brand': 'Crash Buying Simulator',
     'btn.reset': 'Reset',
     'lang.label': 'Language',
@@ -39,7 +40,6 @@ const STRINGS = {
     'panel.portfolio': 'Portfolio',
     'panel.allocation': 'Allocation Guide',
     'panel.allocationNote': '% of base',
-    'panel.chart': (name) => `${name} · Historical Price`,
     'panel.tradeInput': 'Trade Input',
     'panel.log': 'Transaction Log',
 
@@ -186,6 +186,7 @@ const STRINGS = {
 
   zh: {
     'app.title': (name) => `崩盤抄底模擬器 · ${name}`,
+    'panel.chartSuffix': ' · 歷史走勢',
     'app.brand': '崩盤抄底模擬器',
     'btn.reset': '重設',
     'lang.label': '語言',
@@ -213,7 +214,6 @@ const STRINGS = {
     'panel.portfolio': '投資組合',
     'panel.allocation': '配置指南',
     'panel.allocationNote': '佔基準比例',
-    'panel.chart': (name) => `${name} · 歷史走勢`,
     'panel.tradeInput': '交易輸入',
     'panel.log': '交易紀錄',
 
