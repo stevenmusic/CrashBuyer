@@ -93,7 +93,11 @@ body {
   align-items: center;
   gap: 12px;
   padding: 0 16px;
-  height: 46px;
+  /* Wrap rather than push the status pill and Reset past the right edge: at a
+     720px viewport — a 1440 laptop at 200% browser zoom — an unwrapped bar put
+     Reset entirely off-screen and gave the whole page a sideways scroll. */
+  flex-wrap: wrap;
+  min-height: 46px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
@@ -499,6 +503,7 @@ main {
 .board-head {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 9px 14px;
   background: var(--surface-2);
@@ -808,8 +813,12 @@ main {
 
 /* ==================================================================== chart */
 
+/* Wraps below the title on a narrow phone. Unwrapped, the board's own
+   overflow:hidden simply cut the last chips off — at 320px the LOG toggle sat
+   entirely outside the screen, which is the only way to open the trade log. */
 .legend {
   display: flex;
+  flex-wrap: wrap;
   gap: 3px;
   margin-left: auto;
 }
@@ -1260,8 +1269,6 @@ main {
   }
 
   .cmd {
-    height: auto;
-    flex-wrap: wrap;
     padding: 9px 12px;
   }
 

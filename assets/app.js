@@ -360,15 +360,21 @@ function message(key, tone = 'error', argsFn = null) {
   show(key ? t(key, ...(argsFn ? argsFn() : [])) : '', tone);
 }
 
-/** For text that is not a single key, e.g. a composed ledger error. */
-function messageFrom(producer, tone) {
-  lastMessage = { producer, tone };
+/**
+ * For text that is not a single key, e.g. a composed ledger error. `transient`
+ * marks a message the preview owns: it describes the draft in the inputs right
+ * now, so it has to disappear when that draft becomes valid. Messages about
+ * something that already happened — a trade executed, a rung loaded — are not
+ * transient and survive the next render.
+ */
+function messageFrom(producer, tone, transient = false) {
+  lastMessage = { producer, tone, transient };
   show(producer(), tone);
 }
 
 function replayMessage() {
   if (!lastMessage) return;
-  if (lastMessage.producer) messageFrom(lastMessage.producer, lastMessage.tone);
+  if (lastMessage.producer) messageFrom(lastMessage.producer, lastMessage.tone, lastMessage.transient);
   else message(lastMessage.key, lastMessage.tone, lastMessage.argsFn);
 }
 
@@ -563,6 +569,7 @@ function renderPreview({ date, currentPrice }) {
     dom.previewRow.textContent = t('trade.previewEmpty');
     dom.previewRow.classList.add('is-empty');
     dom.executeBtn.disabled = false;
+    if (lastMessage?.transient) message(null);
     return;
   }
 
@@ -583,7 +590,8 @@ function renderPreview({ date, currentPrice }) {
     cell(t('col.valueAfter'), money(row.valueAfter));
 
   dom.executeBtn.disabled = Boolean(candidate.error);
-  if (candidate.error) messageFrom(() => describeError(candidate.error), 'error');
+  if (candidate.error) messageFrom(() => describeError(candidate.error), 'error', true);
+  else if (lastMessage?.transient) message(null);
 }
 
 function renderLog(rows) {
