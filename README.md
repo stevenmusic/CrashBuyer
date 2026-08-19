@@ -184,8 +184,26 @@ The picker in the command bar switches series. **Each instrument keeps its own
 book** — trades, day pointer and all — so comparing SPY against the index never
 mixes the two. Ladder base, language, log scale and alerts are shared.
 
-London-listed accumulating trackers such as CSPX are deliberately absent: the
-key-less endpoint only covers US listings, so they would 404.
+London-listed accumulating trackers such as CSPX are absent, and moving to
+Tiingo did not change that. Measured from CI: Tiingo answers `CSPX`, `CSPX.L`,
+`CSP1`, `SXR8` and `SXR8.DE` with "Ticker not found" on a key that fetches IVV
+in the same run; Twelve Data puts the London and Xetra lines behind its Grow or
+Pro plans; stockanalysis.com has no London route; stooq still serves a robots
+page. So it is a paid symbol on every source the fetcher can reach.
+
+Even with a key, CSPX would not belong beside the others as a plain sixth entry.
+It accumulates — dividends are reinvested inside the fund, so its price already
+contains them — while SPY, VOO and IVV distribute and the fetcher deliberately
+keeps the raw close so the series reads as a price index. Comparing the two in
+one picker would put a total-return series next to price-return ones and credit
+CSPX with roughly its dividend yield, compounded, as if it were outperformance.
+Within CSPX alone the simulation would be sound; across instruments it would
+not. It also only lists from May 2010, so it cannot reach either of the crashes
+this tool most exists for.
+
+IVV is the same fund — iShares Core S&P 500 — in its US, distributing form, and
+the ladder triggers on drawdown from a running peak, which the two share closely.
+It reaches back to 2000-05 and is already in the picker.
 
 ## Language
 
