@@ -390,6 +390,12 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
     return event.clientX - canvas.getBoundingClientRect().left;
   }
 
+  /** Scrubbing has no event to read a client position from, only a local x. */
+  function showTipAt(index, canvasX) {
+    const rect = canvas.getBoundingClientRect();
+    showTip(index, { clientX: rect.left + canvasX, clientY: rect.top + rect.height / 2 });
+  }
+
   function showTip(index, event) {
     const { dates, closes, peaks } = state;
     const dd = closes[index] / peaks[index] - 1;
@@ -411,6 +417,24 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
   const pointers = new Map();
   let pinch = null;
   let pan = null;
+
+  /**
+   * Hold still for this long and the press becomes a scrub: sliding left and
+   * right then walks the day pointer through the history instead of panning the
+   * window. Panning already owns a plain drag, and a tap already owns a single
+   * date, so the long press is what was left to give the one gesture people
+   * reach for on a phone — put a finger down, then go looking for a year.
+   */
+  const HOLD_MS = 350;
+  let scrub = null;
+  let holdTimer = null;
+
+  function cancelHold() {
+    if (holdTimer !== null) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+  }
 
   /** Shifts the window by whole bars, clamped to the data. */
   function panBy(bars) {
@@ -436,6 +460,9 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
 
     if (pointers.size === 2) {
       // Second finger down: abandon the pan, start a pinch.
+      cancelHold();
+      scrub = null;
+      canvas.classList.remove('is-scrubbing');
       pan = null;
       tipEl.hidden = true;
       const [a, b] = [...pointers.values()];
@@ -446,6 +473,21 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
     // A press starts a pan; it only becomes one once it has travelled. Releasing
     // without travelling is a tap, which sets the day pointer instead.
     pan = { originX: localX(event), startBar: view.start, moved: false };
+
+    // ...unless it stays put long enough to become a scrub.
+    const holdX = localX(event);
+    cancelHold();
+    holdTimer = setTimeout(() => {
+      holdTimer = null;
+      if (!pan || pan.moved || pointers.size !== 1) return;
+      pan = null;
+      scrub = true;
+      canvas.classList.add('is-scrubbing');
+      const idx = plot.indexAt(holdX);
+      hoverIndex = idx;
+      onScrub(idx + 1);
+      showTipAt(idx, holdX);
+    }, HOLD_MS);
   });
 
   canvas.addEventListener('pointermove', (event) => {
@@ -464,8 +506,21 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
       return;
     }
 
+    if (scrub) {
+      const x = localX(event);
+      const idx = plot.indexAt(x);
+      if (idx !== hoverIndex) {
+        hoverIndex = idx;
+        onScrub(idx + 1);
+      }
+      showTipAt(idx, x);
+      return;
+    }
+
     if (pan) {
       const dx = localX(event) - pan.originX;
+      // Travelling before the hold fires means this was a drag all along.
+      if (Math.abs(dx) >= TAP_SLOP) cancelHold();
       if (!pan.moved && Math.abs(dx) < TAP_SLOP) {
         // Still within the tap threshold — show the crosshair, do not pan yet.
         const idx = plot.indexAt(localX(event));
@@ -489,7 +544,13 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
 
   const releasePointer = (event) => {
     pointers.delete(event.pointerId);
+    cancelHold();
     if (pointers.size < 2) pinch = null;
+    if (pointers.size === 0 && scrub) {
+      scrub = null;
+      canvas.classList.remove('is-scrubbing');
+      tipEl.hidden = true;
+    }
     if (pointers.size === 0) {
       // A press that never travelled is a tap: place the day pointer.
       if (pan && !pan.moved && plot) onScrub(plot.indexAt(localX(event)) + 1);
@@ -499,6 +560,8 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
   };
   canvas.addEventListener('pointerup', releasePointer);
   canvas.addEventListener('pointercancel', releasePointer);
+  // A held finger otherwise raises a context menu mid-scrub.
+  canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
   // Wheel and trackpad pinch (which arrives as ctrl+wheel) zoom about the cursor.
   canvas.addEventListener(
