@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="CrashBuyer">
+  <!-- Source of every raster below. Full bleed and square: iOS masks its own
+       corners. The monogram is the mark already in the page's command bar; the
+       triangle is the chart's buy marker, which is what the app is for. -->
+  <rect width="512" height="512" fill="#245853"/>
+  <text x="256" y="232" fill="#f4f1ec" font-family="'DejaVu Sans Mono',monospace"
+    font-size="262" font-weight="700" letter-spacing="-14"
+    text-anchor="middle" dominant-baseline="central">CB</text>
+  <path d="M256 356 L318 434 L194 434 Z" fill="#35b264"/>
+</svg>

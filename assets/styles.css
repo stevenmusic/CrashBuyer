@@ -144,7 +144,10 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 16px;
+  /* Added to the home screen the page runs without Safari's chrome, so the
+     status bar sits on top of this bar unless it is inset out of the way. */
+  padding: env(safe-area-inset-top) calc(16px + env(safe-area-inset-right)) 0
+    calc(16px + env(safe-area-inset-left));
   /* Wrap rather than push the status pill and Reset past the right edge: at a
      720px viewport — a 1440 laptop at 200% browser zoom — an unwrapped bar put
      Reset entirely off-screen and gave the whole page a sideways scroll. */
@@ -317,7 +320,8 @@ main {
   gap: var(--gutter);
   max-width: 1640px;
   margin: 0 auto;
-  padding: var(--gutter) 16px 24px;
+  padding: var(--gutter) calc(16px + env(safe-area-inset-right))
+    calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 }
 
 .workbench {
