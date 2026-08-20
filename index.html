@@ -102,7 +102,19 @@
           <div id="presets" class="presets"></div>
           <label class="alert-toggle">
             <input id="alerts-toggle" type="checkbox" />
-            <span data-i18n="alerts.label">Alert on every −10% of drawdown</span>
+            <span data-i18n="alerts.before">Alert every</span>
+            <select id="alerts-step" class="ticker-select alerts-step" data-i18n-aria="alerts.stepLabel">
+              <option value="5">&minus;5%</option>
+              <option value="10" selected>&minus;10%</option>
+              <option value="15">&minus;15%</option>
+              <option value="20">&minus;20%</option>
+              <option value="25">&minus;25%</option>
+            </select>
+            <span data-i18n="alerts.after">below</span>
+            <select id="alerts-basis" class="ticker-select alerts-step" data-i18n-aria="alerts.basisLabel">
+              <option value="peak" data-i18n="alerts.basisPeak" selected>the peak</option>
+              <option value="trade" data-i18n="alerts.basisTrade">my first trade</option>
+            </select>
           </label>
         </div>
         <p id="alerts-hint" class="alerts-hint" hidden></p>

@@ -548,6 +548,8 @@ main {
 .alert-toggle {
   display: flex;
   align-items: center;
+  /* Two pickers inline with a sentence stops fitting on a small phone. */
+  flex-wrap: wrap;
   min-height: 24px;
   gap: 7px;
   margin-left: auto;
@@ -1538,4 +1540,13 @@ main {
 .readout,
 .tape-controls {
   min-width: 0;
+}
+
+
+/* The alert row's two little pickers sit inline with its sentence, so they
+   take the control's look at the sentence's size. */
+.alerts-step {
+  height: 24px;
+  padding: 0 20px 0 6px;
+  font-size: 11px;
 }

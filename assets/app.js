@@ -28,7 +28,9 @@ const STORE_KEY = 'crashbuyer.v1';
 const DEFAULT_LADDER_BASE = 200000;
 
 /** Every 10% of drawdown raises an alert, if alerts are switched on. */
-const ALERT_STEP = 10;
+/** Drawdown bands the alerts step through, in percent. */
+const ALERT_STEPS = [5, 10, 15, 20, 25];
+const DEFAULT_ALERT_STEP = 10;
 
 /**
  * Jump targets, anchored on the market peak that preceded each selloff. Any
@@ -81,6 +83,8 @@ const dom = {
   meterTicks: el('meter-ticks'),
   presets: el('presets'),
   alertsToggle: el('alerts-toggle'),
+  alertsStep: el('alerts-step'),
+  alertsBasis: el('alerts-basis'),
   alertsHint: el('alerts-hint'),
 
   ladderBase: el('ladder-base'),
@@ -163,6 +167,8 @@ const state = {
   visible: { price: true, peak: true, buy: true, sell: true },
   logScale: true,
   alerts: false,
+  alertStep: DEFAULT_ALERT_STEP,
+  alertBasis: 'peak',
 };
 
 function save() {
@@ -175,6 +181,8 @@ function save() {
         visible: state.visible,
         logScale: state.logScale,
         alerts: state.alerts,
+        alertStep: state.alertStep,
+        alertBasis: state.alertBasis,
         lang: getLang(),
         books: {
           ...books,
@@ -211,6 +219,8 @@ function restoreSettings(saved) {
   if (saved.visible) Object.assign(state.visible, saved.visible);
   if (typeof saved.logScale === 'boolean') state.logScale = saved.logScale;
   if (typeof saved.alerts === 'boolean') state.alerts = saved.alerts;
+  if (ALERT_STEPS.includes(saved.alertStep)) state.alertStep = saved.alertStep;
+  if (saved.alertBasis === 'peak' || saved.alertBasis === 'trade') state.alertBasis = saved.alertBasis;
 
   // Saves from before the picker kept a single book at the top level.
   books = saved.books ?? {};
@@ -274,12 +284,39 @@ function toast(text) {
   setTimeout(() => node.remove(), 5000);
 }
 
+/**
+ * What the alerts measure down from, and the two answer different questions.
+ *
+ * Peak-to-date is what the allocation ladder arms against, so an alert on that
+ * basis means a rung just became available — the thing this tool exists to act
+ * on — and the number in the alert matches the one on the meter. It is the
+ * default for that reason.
+ *
+ * The first trade's price answers "how far under water am I", which is about a
+ * position rather than an opportunity. On that basis there is nothing to be
+ * down on until something has been bought, so it returns null until then, and
+ * while the day pointer still sits before that first trade.
+ */
+function alertBasis() {
+  if (state.alertBasis === 'peak') return market().peak;
+  const first = ledger().rows[0];
+  if (!first || first.day > state.day) return null;
+  return first.price;
+}
+
+/** Which band the current price falls in, measured down from the basis. */
 const bandAt = (drawdown) =>
-  Math.floor((Math.max(0, -drawdown) * 100) / ALERT_STEP) * ALERT_STEP;
+  Math.floor((Math.max(0, -drawdown) * 100) / state.alertStep) * state.alertStep;
+
+const bandNow = () => {
+  const basis = alertBasis();
+  if (!basis) return 0;
+  return bandAt(market().currentPrice / basis - 1);
+};
 
 /**
- * Announces the deepest new 10% band the drawdown has fallen through, once per
- * selloff; recovering to a fresh high rearms the ladder.
+ * Announces the deepest new band the price has fallen through below the first
+ * trade, once per selloff; climbing back above the basis rearms it.
  *
  * Only stepping through time raises an alert. Dragging the chart, hitting a
  * preset or typing a day number is navigation, not the market falling — firing
@@ -287,10 +324,25 @@ const bandAt = (drawdown) =>
  * history, which is how this was first built and it was unusable.
  */
 function checkAlerts(snapshot, notify) {
-  const level = bandAt(snapshot.drawdown);
+  const basis = alertBasis();
+  if (!basis) {
+    alertedLevel = 0;
+    return;
+  }
+  const drop = snapshot.currentPrice / basis - 1;
+  const level = bandAt(drop);
 
-  if (!notify || !state.alerts || level <= alertedLevel) {
+  if (!notify || !state.alerts) {
     alertedLevel = level;
+    return;
+  }
+
+  // Rearming on `level === 0` was too loose: that covers everything shallower
+  // than one step, and a market chopping either side of −10% on its way down
+  // announced −10% six times before it ever reached −20%. Only getting all the
+  // way back to the basis counts as a recovery.
+  if (level <= alertedLevel) {
+    if (drop >= 0) alertedLevel = 0;
     return;
   }
 
@@ -319,7 +371,7 @@ async function setAlerts(on) {
   }
 
   // Re-arm from the current position so switching on does not replay old bands.
-  alertedLevel = bandAt(market().drawdown);
+  alertedLevel = bandNow();
   save();
 }
 
@@ -809,6 +861,20 @@ function bindEvents() {
   dom.resetAll.addEventListener('click', resetAll);
   dom.alertsToggle.addEventListener('change', () => setAlerts(dom.alertsToggle.checked));
 
+  // Changing either setting redraws the bands, so re-arm from where the
+  // pointer already is rather than replaying every band it has passed.
+  dom.alertsStep.addEventListener('change', () => {
+    state.alertStep = Number(dom.alertsStep.value) || DEFAULT_ALERT_STEP;
+    alertedLevel = bandNow();
+    save();
+  });
+
+  dom.alertsBasis.addEventListener('change', () => {
+    state.alertBasis = dom.alertsBasis.value === 'trade' ? 'trade' : 'peak';
+    alertedLevel = bandNow();
+    save();
+  });
+
   dom.langSwitch.addEventListener('click', (event) => {
     const button = event.target.closest('.lang-btn');
     if (button) switchLang(button.dataset.lang);
@@ -929,7 +995,7 @@ function renderDataStatus() {
 function adoptSeries() {
   peaks = runningPeaks(series.closes);
   episodes = drawdownEpisodes(series.closes, episodeThreshold());
-  alertedLevel = bandAt(market().drawdown);
+  alertedLevel = bandNow();
   applyInstrumentLabels();
   buildPresets();
 }
@@ -989,6 +1055,9 @@ async function main() {
 
   manifest = await loadManifest();
   restoreSettings(saved);
+  // After the restore, not before it: these were reading the defaults.
+  dom.alertsStep.value = String(state.alertStep);
+  dom.alertsBasis.value = state.alertBasis;
   state.instrument =
     manifest?.instruments.some((i) => i.id === saved?.instrument) ? saved.instrument
     : manifest ? manifest.default
@@ -1021,7 +1090,7 @@ async function main() {
   for (const button of dom.legend.querySelectorAll('[data-series]')) {
     button.setAttribute('aria-pressed', String(state.visible[button.dataset.series]));
   }
-  alertedLevel = bandAt(market().drawdown);
+  alertedLevel = bandNow();
 
   buildInstrumentPicker();
   chart = createChart(dom.chart, dom.chartTip, {
