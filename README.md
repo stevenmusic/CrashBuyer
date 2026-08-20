@@ -233,7 +233,34 @@ ladder that only spent part of it would be measuring two different bets.
 Laddering into the 2008 crash, for instance, beats lump sum by about 46% — and
 still loses to plain monthly DCA, which kept buying all the way down.
 
-## Drawdown alerts
+## Drawdown alerts by email
+
+The daily refresh does not only update the chart. After fetching, it works out
+which drawdown band each watched instrument is in and, when that band is new,
+tells three audiences:
+
+- **A GitHub issue**, assigned to the repository owner. An assignment notifies
+  whatever the watch setting is, so this needs no configuration.
+- **`alerts.xml`**, an Atom feed of the last fifty crossings, linked from the
+  footer. Anyone can point a reader at it.
+- **The newsletter**, if a `BUTTONDOWN_API_KEY` secret exists. The footer's
+  form posts straight to Buttondown, so no subscriber's address ever reaches
+  this repository, and Buttondown owns the confirmation and unsubscribe path.
+  Without the secret the step does nothing, which is what a fork should do.
+
+A band is announced once, not every weekday it stays underwater, and a bounce
+that is still below the peak does not rearm the band it just left. Returning to
+the peak clears it. The first run records where things stand without announcing
+anything.
+
+`ALERT_STEP` and `ALERT_INSTRUMENTS` in the workflow set how wide the bands are
+and which series are watched; unset, it watches whichever instrument the picker
+opens on, since SPY, VOO and IVV would otherwise send three of every message.
+
+To point the form at your own newsletter, replace the username in the form's
+`action` in `index.html` and add your API key as `BUTTONDOWN_API_KEY`.
+
+## Drawdown alerts in the page
 
 Tick **Alert on every −10% of drawdown** in Current Market. Stepping forward
 through time — the arrows or the ← / → keys — raises a toast, and a browser

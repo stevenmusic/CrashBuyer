@@ -117,3 +117,13 @@ jobs:
           # a plain new issue only reaches whoever is subscribed to it.
           ALERT_ASSIGNEE: ${{ github.repository_owner }}
         run: node scripts/open-drawdown-issues.mjs
+
+      # And to everyone who subscribed on the page. Buttondown keeps the list,
+      # the confirmations and the unsubscribe link; this only hands it the
+      # text. No key, no step — a fork of this repository stays quiet.
+      - name: Mail the newsletter
+        env:
+          BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
+          ALERT_OUTPUT: ${{ runner.temp }}/alerts.json
+          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: node scripts/send-drawdown-email.mjs

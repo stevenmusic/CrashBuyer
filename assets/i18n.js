@@ -139,6 +139,9 @@ const STRINGS = {
     'footer.disclaimer':
       'Educational simulation only — not investment advice. Index prices exclude dividends, fees and taxes.',
     'footer.feed': 'Drawdown alerts feed',
+    'footer.subscribe': 'Email me the drawdown alerts',
+    'footer.subscribePlaceholder': 'you@example.com',
+    'footer.subscribeButton': 'Subscribe',
     'proxy.note': (symbol) =>
       `Prices are ${symbol}, an ETF tracking the index — roughly a tenth of the index level. ` +
       'Drawdowns, the allocation ladder and returns are unaffected. Pick S&P 500 above for index levels.',
@@ -312,6 +315,9 @@ const STRINGS = {
     'confirm.reset': '確定要清除所有交易並還原預設階梯基準嗎？',
     'footer.disclaimer': '僅供教學模擬，非投資建議。指數價格不含股息、手續費與稅負。',
     'footer.feed': '跌幅警報訂閱源',
+    'footer.subscribe': '用 Email 接收跌幅警報',
+    'footer.subscribePlaceholder': 'you@example.com',
+    'footer.subscribeButton': '訂閱',
     'proxy.note': (symbol) =>
       `價格為 ${symbol}，追蹤該指數的 ETF——大約是指數點位的十分之一。` +
       '跌幅、配置階梯與報酬率都不受影響。想看指數點位，在上方切換成 S&P 500 即可。',

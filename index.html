@@ -350,6 +350,32 @@
         taxes.</span
       >
       <span id="data-meta" class="data-meta"></span>
+
+      <!-- Posts straight to Buttondown, so no address ever reaches this site.
+           It has to be a real form submission rather than fetch: subscribers
+           sometimes have to follow the response through a CAPTCHA. Replace the
+           username in the action with your own Buttondown username. -->
+      <form
+        class="subscribe"
+        action="https://buttondown.com/api/emails/embed-subscribe/crashbuyer"
+        method="post"
+        target="_blank"
+      >
+        <label for="subscribe-email" data-i18n="footer.subscribe">Email me the drawdown alerts</label>
+        <span class="subscribe-row">
+          <input
+            id="subscribe-email"
+            type="email"
+            name="email"
+            required
+            placeholder="you@example.com"
+            data-i18n-placeholder="footer.subscribePlaceholder"
+          />
+          <input type="hidden" name="embed" value="1" />
+          <button type="submit" data-i18n="footer.subscribeButton">Subscribe</button>
+        </span>
+      </form>
+
       <a class="footer-feed" href="alerts.xml" data-i18n="footer.feed">Drawdown alerts feed</a>
     </footer>
 

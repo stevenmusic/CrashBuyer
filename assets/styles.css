@@ -1557,3 +1557,54 @@ main {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+
+/* Subscribe form. Sits in the footer's flex row and wraps with it. */
+.subscribe {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.subscribe label {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.subscribe-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.subscribe input[type='email'] {
+  min-width: 0;
+  width: 180px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.subscribe button {
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--accent-deep);
+  border-radius: 3px;
+  background: var(--accent-deep);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.subscribe button:hover {
+  background: var(--accent);
+}
