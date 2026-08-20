@@ -12,6 +12,7 @@ import {
   METER_FLOOR,
 } from './model.js';
 import { createChart } from './chart.js';
+import { sessionAt, pollInterval } from './session.mjs';
 import { equityCurve, stats, benchmarks } from './analytics.js';
 import { t, setLang, getLang, applyStatic, LANGS, DEFAULT_LANG } from './i18n.js';
 import {
@@ -538,6 +539,35 @@ function buildMeterTicks() {
   );
 }
 
+/**
+ * Keeps the last bar fresh while a session is running. Pauses on a hidden tab —
+ * a phone in a pocket does not need the price — and re-checks on the way back,
+ * so returning to the page shows the current quote rather than whatever it held
+ * when it was put away.
+ */
+let pollTimer = null;
+
+function scheduleLivePoll() {
+  clearTimeout(pollTimer);
+  const wait = pollInterval(sessionAt());
+  if (!wait || document.hidden) return;
+
+  pollTimer = setTimeout(async () => {
+    const before = series.closes.at(-1);
+    lastLive = await refreshLive(series);
+    if (lastLive?.ok && series.closes.at(-1) !== before) {
+      peaks = runningPeaks(series.closes);
+      episodes = drawdownEpisodes(series.closes, episodeThreshold());
+      // A new bar lengthens the series. Follow it only if the pointer was
+      // already on the last one, so a rewound view is not yanked forward.
+      if (state.day >= series.count - 1) state.day = series.count;
+      render();
+    }
+    renderDataStatus();
+    scheduleLivePoll();
+  }, wait);
+}
+
 function switchLang(lang) {
   setLang(lang);
   for (const button of dom.langSwitch.children) {
@@ -971,7 +1001,9 @@ function renderDataStatus() {
       : t('status.daily', formatDate(series.end));
 
   dom.dataStatus.dataset.state = status;
-  dom.dataStatus.textContent = label;
+  // Say which session it is, so a price that is not moving reads as a closed
+  // market rather than a broken page.
+  dom.dataStatus.textContent = label + t(`session.${sessionAt()}`);
   dom.dataStatus.title = live?.ok ? t('status.liveTitle', live.source) : t('status.offlineTitle');
 
   dom.dataMeta.textContent =
@@ -1107,6 +1139,8 @@ async function main() {
 
   // Best-effort top-up; recompute the derived series if it added a bar.
   lastLive = await refreshLive(series);
+  scheduleLivePoll();
+  document.addEventListener('visibilitychange', scheduleLivePoll);
   if (lastLive.ok) {
     peaks = runningPeaks(series.closes);
     episodes = drawdownEpisodes(series.closes, episodeThreshold());

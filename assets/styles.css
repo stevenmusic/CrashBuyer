@@ -98,6 +98,12 @@ html {
    auto, which makes the root a scroll container and behaves differently in
    Safari. Plain hidden on the body alone is the version whose behaviour is the
    same everywhere. */
+/* Both, not just body: overflow set on body alone still lets the root
+   propagate to the viewport, which left 300px screens scrollable by the two
+   sub-pixels a wrapped row rounds up to. Plain `hidden` rather than `clip`,
+   since clip alongside a visible overflow-y computes the other axis to auto
+   and Safari takes that differently. */
+html,
 body {
   max-width: 100%;
   overflow-x: hidden;
@@ -195,6 +201,9 @@ body {
 
 .cmd-right {
   display: flex;
+  /* The status pill grew a session suffix, which was enough to push the
+     language switch and Reset off a 390px screen. It wraps now. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-left: auto;

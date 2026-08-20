@@ -14,6 +14,15 @@
     <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
+
+    <!-- A quote proxy that answers with CORS headers, so the page can refresh
+         the last bar during a session. stooq and Yahoo do not send those
+         headers, so a browser refuses their answers however often it asks.
+         See worker/README.md; leave unset and the page keeps its daily
+         snapshot. -->
+    <script>
+      // window.CRASHBUYER_LIVE_URL = 'https://crashbuyer-quote.<subdomain>.workers.dev';
+    </script>
     <link
       rel="alternate"
       type="application/atom+xml"

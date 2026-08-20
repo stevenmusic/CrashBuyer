@@ -197,10 +197,37 @@ async function yahooQuote() {
   throw new Error('no usable bar');
 }
 
+/**
+ * A proxy that answers with CORS headers, set by index.html when one is
+ * deployed. It is the only route that can work during a session: stooq and
+ * Yahoo send no Access-Control-Allow-Origin, so a browser refuses their
+ * answers however often it asks, which is why the status pill reads "daily
+ * snapshot" on a page that has been trying since it loaded. They stay as a
+ * fallback because on some browsers and extensions they do get through.
+ */
+async function proxyQuote(symbol) {
+  const base = globalThis.CRASHBUYER_LIVE_URL;
+  const res = await fetchWithTimeout(`${base}?symbol=${encodeURIComponent(symbol)}`);
+  const json = await res.json();
+  const date = String(json?.date ?? '');
+  const close = Number(json?.close);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(close) || close <= 0) {
+    throw new Error('unusable quote');
+  }
+  // The proxy names its own upstream when it can; otherwise the slot's name
+  // stands in, so the pill never ends up reading "live · live".
+  return { date, close, source: json?.source ? String(json.source) : undefined };
+}
+
 const LIVE_SOURCES = [
   { name: 'stooq', fetch: stooqQuote },
   { name: 'yahoo', fetch: yahooQuote },
 ];
+
+const liveSources = (symbol) =>
+  globalThis.CRASHBUYER_LIVE_URL
+    ? [{ name: 'proxy', fetch: () => proxyQuote(symbol) }, ...LIVE_SOURCES]
+    : LIVE_SOURCES;
 
 /**
  * Tops the series up with the newest quote a browser can reach. Mutates
@@ -208,7 +235,7 @@ const LIVE_SOURCES = [
  * Never throws: a blocked or unreachable endpoint just means `ok: false`.
  */
 export async function refreshLive(series) {
-  for (const source of LIVE_SOURCES) {
+  for (const source of liveSources(series.symbol)) {
     let quote;
     try {
       quote = await source.fetch();
@@ -232,13 +259,13 @@ export async function refreshLive(series) {
       series.closes.push(close);
       series.end = quote.date;
       series.count = series.dates.length;
-      return { ok: true, source: source.name, added: true, date: quote.date, close };
+      return { ok: true, source: quote.source ?? source.name, added: true, date: quote.date, close };
     }
 
     if (quote.date === series.dates[last]) {
       const changed = series.closes[last] !== close;
       series.closes[last] = close;
-      return { ok: true, source: source.name, added: false, changed, date: quote.date, close };
+      return { ok: true, source: quote.source ?? source.name, added: false, changed, date: quote.date, close };
     }
 
     // Quote older than what is committed (a stale mirror) — ignore it.

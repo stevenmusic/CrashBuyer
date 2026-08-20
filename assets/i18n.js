@@ -15,6 +15,10 @@ const STRINGS = {
     'btn.reset': 'Reset',
     'lang.label': 'Language',
 
+    'session.pre': ' · pre-market',
+    'session.open': ' · market open',
+    'session.post': ' · after hours',
+    'session.closed': '',
     'status.loading': 'loading data…',
     'status.fetching': 'fetching history…',
     'status.noData': 'no data',
@@ -200,6 +204,10 @@ const STRINGS = {
     'btn.reset': '重設',
     'lang.label': '語言',
 
+    'session.pre': ' · 盤前',
+    'session.open': ' · 盤中',
+    'session.post': ' · 盤後',
+    'session.closed': '',
     'status.loading': '載入資料中…',
     'status.fetching': '抓取歷史資料中…',
     'status.noData': '無資料',

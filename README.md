@@ -167,7 +167,14 @@ answers on `/s/` but 400s on `/i/` for every index symbol;
    23:10 UTC on weekdays and commits whatever changed. Each instrument refuses to
    overwrite itself with a shorter or older series from the same source, so a bad
    upstream response fails that one instrument instead of corrupting it.
-2. **Live top-up (best effort).** On load the page appends today's bar from a
+2. **Live during a session.** With a quote proxy deployed (see
+   `worker/README.md`) the page refreshes the last bar while the US market is
+   open — every 60s in regular hours, every 180s pre-market and after hours,
+   paused on a hidden tab. Sessions are read off the wall clock in
+   `America/New_York`, so the Taipei open moves between 21:30 and 22:30 with
+   daylight saving on its own. The status pill names the session, so a price
+   that is not moving reads as a closed market rather than a broken page.
+3. **Live top-up (best effort).** On load the page appends today's bar from a
    public quote endpoint. Those are key-less, so a browser may refuse them on CORS
    grounds; the status pill shows `live · <source>` or `daily snapshot`. A quote
    more than 30% away from the last close is rejected, so an index quote can never
