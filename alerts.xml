@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>CrashBuyer drawdown alerts</title>
+  <subtitle>Published when the market crosses a new drawdown band.</subtitle>
+  <id>https://stevenmusic.github.io/CrashBuyer/alerts.xml</id>
+  <link href="https://stevenmusic.github.io/CrashBuyer/alerts.xml" rel="self"/>
+  <link href="https://stevenmusic.github.io/CrashBuyer"/>
+  <updated>2026-08-20T05:12:22.544Z</updated>
+
+</feed>

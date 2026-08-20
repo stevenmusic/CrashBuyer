@@ -10,6 +10,11 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = resolve(ROOT, 'data');
 const STATE_FILE = resolve(ROOT, '.github/alert-state.json');
+/** Past alerts, so the feed can be rebuilt whole on every run. */
+const LOG_FILE = resolve(DATA_DIR, 'alerts-log.json');
+const FEED_FILE = resolve(ROOT, 'alerts.xml');
+/** How many past alerts the feed carries. */
+const FEED_LIMIT = 50;
 
 /** Bands are this many percent apart. */
 const STEP = Number(process.env.ALERT_STEP) || 10;
@@ -19,6 +24,51 @@ const STEP = Number(process.env.ALERT_STEP) || 10;
 const LADDER = [10, 15, 20, 25, 30, 40, 50];
 
 const band = (dropPct) => Math.floor(Math.max(0, -dropPct) / STEP) * STEP;
+
+/** Where the page is published, for the links inside the feed. */
+const SITE = (process.env.SITE_URL || 'https://stevenmusic.github.io/CrashBuyer').replace(/\/$/, '');
+
+const escape = (text) =>
+  String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]);
+
+/**
+ * An Atom feed of past alerts. A static site cannot send mail — that needs an
+ * address list, a sending service and an unsubscribe path — but anyone can
+ * point a reader at this, and the readers that deliver by mail handle the
+ * consent and the unsubscribing themselves.
+ */
+function buildFeed(entries) {
+  const updated = entries[0]?.at ?? new Date().toISOString();
+  const items = entries
+    .map((a) => {
+      const depth = Math.abs(Number(a.drop)).toFixed(2);
+      const title = `${a.symbol} crossed \u2212${a.level}% \u2014 now ${depth}% below its peak`;
+      const summary =
+        `${a.name} closed at ${a.close} on ${a.date}. Peak to date ${a.peak}, ` +
+        `drawdown \u2212${depth}%. ` +
+        (a.deepestRung ? `The \u2212${a.deepestRung}% rung of the ladder is armed.` : 'No rung is armed yet.');
+      return `  <entry>
+    <title>${escape(title)}</title>
+    <id>tag:crashbuyer,${a.date}:${a.id}-${a.level}</id>
+    <updated>${escape(a.at)}</updated>
+    <link href="${escape(SITE)}"/>
+    <summary>${escape(summary)}</summary>
+  </entry>`;
+    })
+    .join('\n');
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>CrashBuyer drawdown alerts</title>
+  <subtitle>Published when the market crosses a new drawdown band.</subtitle>
+  <id>${escape(SITE)}/alerts.xml</id>
+  <link href="${escape(SITE)}/alerts.xml" rel="self"/>
+  <link href="${escape(SITE)}"/>
+  <updated>${escape(updated)}</updated>
+${items}
+</feed>
+`;
+}
 
 async function readJson(path, fallback = null) {
   try {
@@ -91,6 +141,14 @@ for (const id of watch) {
 
 state.seeded = true;
 await writeFile(STATE_FILE, JSON.stringify(state, null, 2) + '\n');
+
+// The feed is rebuilt every run, not only when something crossed, so a fresh
+// checkout always produces the same file as the last one did.
+const log = (await readJson(LOG_FILE, null)) ?? [];
+for (const a of alerts) log.unshift({ ...a, at: new Date().toISOString() });
+const trimmed = log.slice(0, FEED_LIMIT);
+await writeFile(LOG_FILE, JSON.stringify(trimmed, null, 2) + '\n');
+await writeFile(FEED_FILE, buildFeed(trimmed));
 
 if (!alerts.length) {
   console.log('[alert] no new band crossed');

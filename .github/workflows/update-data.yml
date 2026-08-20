@@ -53,6 +53,8 @@ jobs:
           ALERT_STEP: '10'
           ALERT_INSTRUMENTS: ''
           ALERT_OUTPUT: ${{ runner.temp }}/alerts.json
+          # Absolute links inside the feed, since a reader has no page context.
+          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: node scripts/drawdown-alert.mjs
 
       # GitHub disables a scheduled workflow after 60 days with no new commit,
@@ -79,7 +81,7 @@ jobs:
           # Stage first: `git diff` alone cannot see the file on the very first
           # run, when it is still untracked.
           # The alert's own state travels with the data it was derived from.
-          git add data .github/alert-state.json
+          git add data .github/alert-state.json alerts.xml
           if git diff --cached --quiet; then
             # Quiet markets, a long holiday, or a source that stalled: no new
             # data means no commit, and enough of those in a row is what runs

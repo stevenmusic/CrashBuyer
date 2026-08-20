@@ -1550,3 +1550,10 @@ main {
   padding: 0 20px 0 6px;
   font-size: 11px;
 }
+
+
+.footer-feed {
+  color: var(--accent-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
