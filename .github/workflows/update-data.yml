@@ -111,4 +111,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ALERT_OUTPUT: ${{ runner.temp }}/alerts.json
+          # An assignment notifies whatever the repository's watch setting is;
+          # a plain new issue only reaches whoever is subscribed to it.
+          ALERT_ASSIGNEE: ${{ github.repository_owner }}
         run: node scripts/open-drawdown-issues.mjs

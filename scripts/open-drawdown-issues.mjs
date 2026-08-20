@@ -45,8 +45,14 @@ for (const a of alerts) {
     continue;
   }
 
+  // Assigning it is what actually guarantees delivery: an assignment notifies
+  // regardless of how the repository is watched, where a plain new issue only
+  // reaches people subscribed to it.
+  const args = ['issue', 'create', '--title', title, '--body', body];
+  if (process.env.ALERT_ASSIGNEE) args.push('--assignee', process.env.ALERT_ASSIGNEE);
+
   try {
-    execFileSync(gh, ['issue', 'create', '--title', title, '--body', body], { stdio: 'inherit' });
+    execFileSync(gh, args, { stdio: 'inherit' });
   } catch (err) {
     console.error(`[issues] could not open "${title}": ${err.message}`);
     process.exitCode = 1;
