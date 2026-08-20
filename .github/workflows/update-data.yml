@@ -38,16 +38,50 @@ jobs:
           ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
         run: node scripts/fetch-sp500.mjs
 
+      # GitHub disables a scheduled workflow after 60 days with no new commit,
+      # and only commits count — tags, releases and merged pull requests do
+      # not. Commits pushed by GITHUB_TOKEN's bot are widely reported not to
+      # count either, which would leave this workflow switching itself off
+      # eventually despite committing every weekday. Set a KEEPALIVE_PAT
+      # secret (fine-grained, contents:write on this repo alone) and the push
+      # is authored and pushed as the repository owner instead, which does.
+      # Without the secret everything still runs; only the clock is at risk.
       - name: Commit if the series changed
+        env:
+          KEEPALIVE_PAT: ${{ secrets.KEEPALIVE_PAT }}
+          OWNER: ${{ github.repository_owner }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$KEEPALIVE_PAT" ]; then
+            git config user.name "$OWNER"
+            git config user.email "$OWNER@users.noreply.github.com"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          fi
+
           # Stage first: `git diff` alone cannot see the file on the very first
           # run, when it is still untracked.
           git add data
           if git diff --cached --quiet; then
-            echo "No new data."
-            exit 0
+            # Quiet markets, a long holiday, or a source that stalled: no new
+            # data means no commit, and enough of those in a row is what runs
+            # the clock down. Touch a marker well inside the 60 days so the
+            # repository is never silent for long enough to be switched off.
+            age=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+            if [ "$age" -lt 40 ]; then
+              echo "No new data; last commit was ${age} days ago, clock is fine."
+              exit 0
+            fi
+            date -u +%Y-%m-%dT%H:%M:%SZ > .github/keepalive
+            git add .github/keepalive
+            git commit -m "chore: keepalive — no commit in ${age} days"
+          else
+            git commit -m "data: refresh daily closes through $(node -p "require('./data/instruments.json').instruments[0].end")"
           fi
-          git commit -m "data: refresh daily closes through $(node -p "require('./data/instruments.json').instruments[0].end")"
-          git push origin HEAD:${GITHUB_REF_NAME}
+
+          if [ -n "$KEEPALIVE_PAT" ]; then
+            git push "https://x-access-token:${KEEPALIVE_PAT}@github.com/${GITHUB_REPOSITORY}.git" \
+              HEAD:${GITHUB_REF_NAME}
+          else
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
