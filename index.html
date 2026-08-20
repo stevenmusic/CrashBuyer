@@ -353,11 +353,12 @@
 
       <!-- Posts straight to Buttondown, so no address ever reaches this site.
            It has to be a real form submission rather than fetch: subscribers
-           sometimes have to follow the response through a CAPTCHA. Replace the
-           username in the action with your own Buttondown username. -->
+           sometimes have to follow the response through a CAPTCHA. The name at
+           the end of the action is the Buttondown username the list belongs
+           to; a fork has to change it or it will subscribe people to mine. -->
       <form
         class="subscribe"
-        action="https://buttondown.com/api/emails/embed-subscribe/crashbuyer"
+        action="https://buttondown.com/api/emails/embed-subscribe/stevenmusic"
         method="post"
         target="_blank"
       >

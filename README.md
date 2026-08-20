@@ -257,8 +257,9 @@ anything.
 and which series are watched; unset, it watches whichever instrument the picker
 opens on, since SPY, VOO and IVV would otherwise send three of every message.
 
-To point the form at your own newsletter, replace the username in the form's
-`action` in `index.html` and add your API key as `BUTTONDOWN_API_KEY`.
+The form's `action` ends in the Buttondown username the list belongs to. A
+fork has to change it, or it will subscribe people to someone else's
+newsletter, and add its own key as `BUTTONDOWN_API_KEY`.
 
 ## Drawdown alerts in the page
 
