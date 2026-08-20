@@ -94,14 +94,14 @@ html {
    user-scalable=no since v48, so a stray pinch can still scale the page there
    whatever the viewport meta says; this at least stops anything escaping
    sideways when it does, rather than leaving a board hanging off the edge. */
-html,
+/* Pairing overflow-x:clip with a visible overflow-y computes the other axis to
+   auto, which makes the root a scroll container and behaves differently in
+   Safari. Plain hidden on the body alone is the version whose behaviour is the
+   same everywhere. */
 body {
   max-width: 100%;
-  /* `clip` is the better of the two — it does not make a scroll container —
-     but Safari only learned it in 16, so `hidden` stays underneath for the
-     versions that skip the line they cannot parse. */
   overflow-x: hidden;
-  overflow-x: clip;
+  overscroll-behavior-x: none;
 }
 
 body {
