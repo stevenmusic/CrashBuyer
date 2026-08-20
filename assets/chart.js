@@ -419,22 +419,18 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
   let pan = null;
 
   /**
-   * Hold still for this long and the press becomes a scrub: sliding left and
-   * right then walks the day pointer through the history instead of panning the
-   * window. Panning already owns a plain drag, and a tap already owns a single
-   * date, so the long press is what was left to give the one gesture people
-   * reach for on a phone — put a finger down, then go looking for a year.
+   * Slide this far sideways and the press becomes a scrub: the day pointer then
+   * follows the finger through the history, one bar at a time, so reading a
+   * particular day is a single continuous gesture rather than tap, look, tap
+   * again. A timed long press was tried first and was simply too slow to wait
+   * out for the thing people do most.
+   *
+   * Panning moves to two fingers, which the pinch handler already does: hold a
+   * constant distance between them and the window slides without zooming. On a
+   * mouse, shift+drag pans.
    */
-  const HOLD_MS = 350;
+  const SCRUB_SLOP = 8;
   let scrub = null;
-  let holdTimer = null;
-
-  function cancelHold() {
-    if (holdTimer !== null) {
-      clearTimeout(holdTimer);
-      holdTimer = null;
-    }
-  }
 
   /** Shifts the window by whole bars, clamped to the data. */
   function panBy(bars) {
@@ -460,7 +456,6 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
 
     if (pointers.size === 2) {
       // Second finger down: abandon the pan, start a pinch.
-      cancelHold();
       scrub = null;
       canvas.classList.remove('is-scrubbing');
       pan = null;
@@ -470,24 +465,9 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
       return;
     }
 
-    // A press starts a pan; it only becomes one once it has travelled. Releasing
-    // without travelling is a tap, which sets the day pointer instead.
-    pan = { originX: localX(event), startBar: view.start, moved: false };
-
-    // ...unless it stays put long enough to become a scrub.
-    const holdX = localX(event);
-    cancelHold();
-    holdTimer = setTimeout(() => {
-      holdTimer = null;
-      if (!pan || pan.moved || pointers.size !== 1) return;
-      pan = null;
-      scrub = true;
-      canvas.classList.add('is-scrubbing');
-      const idx = plot.indexAt(holdX);
-      hoverIndex = idx;
-      onScrub(idx + 1);
-      showTipAt(idx, holdX);
-    }, HOLD_MS);
+    // A press is a tap until it travels. Once it does, it becomes a scrub —
+    // or a pan, if shift is down.
+    pan = { originX: localX(event), startBar: view.start, moved: false, pans: event.shiftKey };
   });
 
   canvas.addEventListener('pointermove', (event) => {
@@ -506,6 +486,13 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
       return;
     }
 
+    if (pan && !pan.pans && Math.abs(localX(event) - pan.originX) >= SCRUB_SLOP) {
+      // Travelled far enough sideways: hand the gesture to the day pointer.
+      pan = null;
+      scrub = true;
+      canvas.classList.add('is-scrubbing');
+    }
+
     if (scrub) {
       const x = localX(event);
       const idx = plot.indexAt(x);
@@ -519,8 +506,6 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
 
     if (pan) {
       const dx = localX(event) - pan.originX;
-      // Travelling before the hold fires means this was a drag all along.
-      if (Math.abs(dx) >= TAP_SLOP) cancelHold();
       if (!pan.moved && Math.abs(dx) < TAP_SLOP) {
         // Still within the tap threshold — show the crosshair, do not pan yet.
         const idx = plot.indexAt(localX(event));
@@ -544,7 +529,6 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
 
   const releasePointer = (event) => {
     pointers.delete(event.pointerId);
-    cancelHold();
     if (pointers.size < 2) pinch = null;
     if (pointers.size === 0 && scrub) {
       scrub = null;

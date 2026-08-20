@@ -90,12 +90,30 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Last line of defence on the layout's width. Android Chrome has ignored
+   user-scalable=no since v48, so a stray pinch can still scale the page there
+   whatever the viewport meta says; this at least stops anything escaping
+   sideways when it does, rather than leaving a board hanging off the edge. */
+html,
+body {
+  max-width: 100%;
+  /* `clip` is the better of the two — it does not make a scroll container —
+     but Safari only learned it in 16, so `hidden` stays underneath for the
+     versions that skip the line they cannot parse. */
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   /* Kills the double-tap-to-zoom delay and gesture. Pinch is handled by the
      chart itself; see the gesture guard in app.js for iOS, which ignores
      user-scalable=no. */
   touch-action: manipulation;
+  /* `manipulation` still leaves pinch to the browser, which on Android means
+     the page scales out from under the layout mid-gesture. Vertical scrolling
+     is all the page itself needs from touch. */
+  touch-action: pan-y;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);
@@ -1484,8 +1502,36 @@ main {
 }
 
 
-/* While a long press is scrubbing, the cursor says so and the browser stops
-   offering to select or callout the canvas under the held finger. */
 .chart-wrap canvas.is-scrubbing {
   cursor: ew-resize;
+}
+
+/* A drag across the plot used to paint the caption — and whatever else the
+   selection reached — in the browser's selection blue, which is exactly the
+   text you are trying to read while scrubbing. Nothing in the chart board is
+   meant to be selected, and mobile's tap flash goes with it. */
+.board-chart {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+
+/* The log is wider than a phone and scrolls sideways on purpose, so it has to
+   opt back into horizontal panning that body's pan-y otherwise withholds. */
+.table-scroll {
+  touch-action: pan-x pan-y;
+}
+
+
+/* Flex children default to min-width:auto, which is their content's width, so
+   a long instrument name or a wide readout pushes its row past the viewport
+   instead of shrinking. Chromium happened to have room; a wider mono face does
+   not. */
+.cmd h1,
+.cmd-right,
+.board-head h2,
+.readout,
+.tape-controls {
+  min-width: 0;
 }

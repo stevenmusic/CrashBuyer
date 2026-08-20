@@ -84,7 +84,7 @@ const STRINGS = {
     'legend.peak': 'Peak',
     'legend.buy': 'BUY',
     'legend.sell': 'SELL',
-    'chart.hint': 'Tap to move the Day Pointer · hold, then slide to scrub through the years · drag to pan · pinch or scroll to zoom · double-click to reset.',
+    'chart.hint': 'Tap or slide to move the Day Pointer through the days · pinch or scroll to zoom · two fingers, or shift-drag, to pan · double-click to reset.',
     'legend.resetZoom': 'Reset zoom',
     'chart.tip': (day, date, price, dd) =>
       `<b>Day ${day}</b> · ${date}<br />${price}<br />Drawdown ${dd}`,
@@ -255,7 +255,7 @@ const STRINGS = {
     'legend.peak': '高點',
     'legend.buy': '買進',
     'legend.sell': '賣出',
-    'chart.hint': '點一下移動日期指標 · 長按後左右滑動可跨年份拖曳 · 直接拖曳為平移 · 雙指縮放或滾輪放大 · 雙擊還原。',
+    'chart.hint': '點一下或左右滑動移動日期指標、逐日查看 · 雙指縮放或滾輪放大 · 雙指平移或 Shift 拖曳 · 雙擊還原。',
     'legend.resetZoom': '還原縮放',
     'chart.tip': (day, date, price, dd) =>
       `<b>第 ${day} 天</b> · ${date}<br />${price}<br />跌幅 ${dd}`,
