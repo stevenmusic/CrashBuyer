@@ -1608,3 +1608,9 @@ main {
 .subscribe button:hover {
   background: var(--accent);
 }
+
+
+.subscribe-credit {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
