@@ -13,6 +13,8 @@ concurrency:
 
 permissions:
   contents: write
+  # The drawdown alert opens an issue, which is how the email reaches you.
+  issues: write
 
 jobs:
   update:
@@ -38,6 +40,21 @@ jobs:
           ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
         run: node scripts/fetch-sp500.mjs
 
+      # Decides whether today's close fell into a band it has not announced
+      # yet. Writes its state file either way; only writes the alert list when
+      # something crossed.
+      - name: Check for a new drawdown band
+        id: drawdown
+        env:
+          # Bands this many percent apart, and which series to watch. Left
+          # unset, it watches whichever instrument the picker opens on — SPY,
+          # VOO and IVV track the same index, so watching all three would send
+          # three of every email.
+          ALERT_STEP: '10'
+          ALERT_INSTRUMENTS: ''
+          ALERT_OUTPUT: ${{ runner.temp }}/alerts.json
+        run: node scripts/drawdown-alert.mjs
+
       # GitHub disables a scheduled workflow after 60 days with no new commit,
       # and only commits count — tags, releases and merged pull requests do
       # not. Commits pushed by GITHUB_TOKEN's bot are widely reported not to
@@ -61,7 +78,8 @@ jobs:
 
           # Stage first: `git diff` alone cannot see the file on the very first
           # run, when it is still untracked.
-          git add data
+          # The alert's own state travels with the data it was derived from.
+          git add data .github/alert-state.json
           if git diff --cached --quiet; then
             # Quiet markets, a long holiday, or a source that stalled: no new
             # data means no commit, and enough of those in a row is what runs
@@ -85,3 +103,12 @@ jobs:
           else
             git push origin HEAD:${GITHUB_REF_NAME}
           fi
+
+      # One issue per band crossed. GitHub emails the repository's watchers,
+      # which is the whole delivery mechanism — no push service, no server, and
+      # it reaches a phone that has the page closed.
+      - name: Open an issue for each new band
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALERT_OUTPUT: ${{ runner.temp }}/alerts.json
+        run: node scripts/open-drawdown-issues.mjs
