@@ -768,14 +768,20 @@ function buildPresets() {
 }
 
 /**
- * iOS has ignored `user-scalable=no` since iOS 10, so the viewport meta alone
- * does not stop a stray two-finger gesture from zooming the whole page while
- * the user is trying to pinch the chart. Safari's non-standard gesture events
- * are the only handle on it.
+ * Only the plot refuses a pinch, and only so that pinching the chart zooms the
+ * chart rather than the page behind it. The page itself stays zoomable.
+ *
+ * It used to be locked document-wide, with maximum-scale=1 and
+ * user-scalable=no in the viewport meta besides. That is what broke iPad:
+ * Safari lays a page out at desktop width and scales it down to fit, and a
+ * page that forbids scaling cannot be fitted, so it was simply cut off at
+ * whichever edge you were not looking at. Every other site fits because no
+ * other site takes the scale away. Zooming is also how anyone who needs
+ * larger text reads this at all, which WCAG asks for and the lock denied.
  */
-function lockPageZoom() {
+function lockChartPinch() {
   for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
-    document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
+    dom.chart.addEventListener(type, (event) => event.preventDefault(), { passive: false });
   }
 }
 
@@ -1025,7 +1031,7 @@ async function main() {
     },
   });
   bindEvents();
-  lockPageZoom();
+  lockChartPinch();
   render();
   dom.layout.setAttribute('aria-busy', 'false');
   renderDataStatus();

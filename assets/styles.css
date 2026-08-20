@@ -109,11 +109,11 @@ body {
   /* Kills the double-tap-to-zoom delay and gesture. Pinch is handled by the
      chart itself; see the gesture guard in app.js for iOS, which ignores
      user-scalable=no. */
+  /* Kills the double-tap-to-zoom gesture and its click delay, and leaves pinch
+     to the browser, where it belongs: the canvas takes touch-action:none for
+     its own pinch, and everywhere else a page that cannot be zoomed is a page
+     some people cannot read. */
   touch-action: manipulation;
-  /* `manipulation` still leaves pinch to the browser, which on Android means
-     the page scales out from under the layout mid-gesture. Vertical scrolling
-     is all the page itself needs from touch. */
-  touch-action: pan-y;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);
