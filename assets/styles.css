@@ -495,6 +495,8 @@ main {
 
 /* Crash presets read as terminal function keys, not pill buttons. */
 .preset {
+  /* 24px is the smallest comfortable touch target; these were 22px tall. */
+  min-height: 24px;
   padding: 4px 9px;
   border: 1px solid var(--line);
   border-radius: 2px;
@@ -524,6 +526,7 @@ main {
 .alert-toggle {
   display: flex;
   align-items: center;
+  min-height: 24px;
   gap: 7px;
   margin-left: auto;
   color: var(--ink-dim);
@@ -777,6 +780,7 @@ main {
 .use-btn {
   /* Fills a narrow column, but does not sprawl when the ladder spans the page. */
   width: 100%;
+  min-height: 24px;
   max-width: 92px;
   padding: 3px 4px;
   border: 1px solid var(--line);
@@ -884,6 +888,7 @@ main {
 .legend-item {
   display: flex;
   align-items: center;
+  min-height: 24px;
   gap: 5px;
   padding: 3px 7px;
   border: 1px solid transparent;
@@ -919,15 +924,26 @@ main {
 
 .swatch-price { background: #3c5a68; }
 .swatch-peak { background: #9c948a; }
-.swatch-buy { background: var(--pos); }
-.swatch-sell { background: var(--neg); }
+/* The legend has to teach the shape, not just the colour, or the chart's
+   triangles have nothing to key against. */
+.swatch-buy {
+  background: var(--pos);
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.swatch-sell {
+  background: var(--neg);
+  border-radius: 0;
+  clip-path: polygon(50% 100%, 100% 0, 0 0);
+}
 
 .chart-wrap {
   position: relative;
   /* Follows the viewport instead of a fixed 340px, which is what lets the whole
      workbench land on one screen on a tall display without squeezing the plot
      into a strip on a short one. */
-  height: clamp(230px, 32vh, 340px);
+  height: clamp(230px, 30vh, 340px);
   padding: 10px 8px 0;
 }
 
@@ -1434,4 +1450,31 @@ main {
 /* When the picker is live the plain label is redundant. */
 .ticker-select:not([hidden]) + .brand-sub {
   display: none;
+}
+
+
+/* Respect a system request for less motion: the meter slide, the race bars and
+   the toast entrance are decoration, and vestibular triggers for some people. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* WCAG 2.2 target size: these sat between 15px and 22px tall. The delete
+   control was the worst of them at 23x15, and it is the one that destroys a
+   trade, so it is the one a mis-tap costs most. */
+.del-btn {
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.note-input {
+  min-height: 24px;
 }

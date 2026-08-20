@@ -302,8 +302,25 @@ export function createChart(canvas, tipEl, { onScrub, onZoom }) {
       if (!isBuy && !visible.sell) continue;
       const i = trade.day - 1;
       if (i < plot.view.start || i > plot.view.end) continue;
+      // Shape carries buy/sell, not only colour. Simulated on this palette,
+      // green and red collapse to the same olive under protanopia (dE 16) and
+      // deuteranopia (dE 25), and their luminances differ by 1.09:1, so a
+      // colour-only marker leaves red-green viewers nothing to read. A
+      // triangle pointing the way the trade goes survives every CVD type.
+      const px = plot.x(i);
+      const py = plot.y(closes[i]);
+      const r = 4.5;
       ctx.beginPath();
-      ctx.arc(plot.x(i), plot.y(closes[i]), 3.5, 0, Math.PI * 2);
+      if (isBuy) {
+        ctx.moveTo(px, py - r);
+        ctx.lineTo(px + r, py + r * 0.75);
+        ctx.lineTo(px - r, py + r * 0.75);
+      } else {
+        ctx.moveTo(px, py + r);
+        ctx.lineTo(px + r, py - r * 0.75);
+        ctx.lineTo(px - r, py - r * 0.75);
+      }
+      ctx.closePath();
       ctx.fillStyle = isBuy ? COLORS.buy : COLORS.sell;
       ctx.fill();
       ctx.lineWidth = 1.5;
