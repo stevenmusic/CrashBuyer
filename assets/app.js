@@ -367,7 +367,7 @@ async function setAlerts(on) {
     if (permission === 'default') permission = await Notification.requestPermission();
     dom.alertsHint.hidden = false;
     dom.alertsHint.textContent =
-      permission === 'granted' ? t('alerts.enabled') : t('alerts.blocked');
+      permission === 'granted' ? t('alerts.enabled', state.alertStep) : t('alerts.blocked');
   }
 
   // Re-arm from the current position so switching on does not replay old bands.

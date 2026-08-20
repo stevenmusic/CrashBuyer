@@ -165,7 +165,7 @@ const STRINGS = {
 
     'legend.log': 'LOG',
     'alerts.blocked': 'Browser notifications are blocked; alerts will still appear on the page.',
-    'alerts.enabled': 'Alerts on. Crossing −10%, −20%, −30%… will notify you.',
+    'alerts.enabled': (step) => `Alerts on. Crossing −${step}%, −${step * 2}%, −${step * 3}%… will notify you.`,
     'alerts.before': 'Alert every',
     'alerts.after': 'below',
     'alerts.stepLabel': 'Drawdown step between alerts',
@@ -336,7 +336,7 @@ const STRINGS = {
 
     'legend.log': '對數',
     'alerts.blocked': '瀏覽器通知被封鎖，提醒仍會顯示在頁面上。',
-    'alerts.enabled': '提醒已開啟。跌破 −10%、−20%、−30%… 時會通知你。',
+    'alerts.enabled': (step) => `提醒已開啟。跌破 −${step}%、−${step * 2}%、−${step * 3}%… 時會通知你。`,
     'alerts.before': '每再跌',
     'alerts.after': '就通知，基準為',
     'alerts.stepLabel': '通知的跌幅間距',
