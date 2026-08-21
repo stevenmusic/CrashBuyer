@@ -28,6 +28,11 @@ const STRINGS = {
     'status.liveTitle': (source) => `Topped up in-browser from ${source}.`,
     'status.offlineTitle':
       'Live top-up unavailable (usually a CORS block); showing the daily committed snapshot.',
+    'status.offlineReason': (reason) =>
+      `Live top-up unavailable — ${reason}; showing the daily committed snapshot.`,
+    'status.reason.unreachable': 'every live source failed or timed out',
+    'status.reason.scale-mismatch': 'the quote was wildly off the committed close, so it was rejected',
+    'status.reason.stale': 'the quote was older than the committed close',
     'meta.summary': (count, start, end, symbol, source) =>
       `${count} bars · ${start} → ${end} · ${symbol} via ${source}`,
     'meta.proxy': ' · ETF proxy',
@@ -217,6 +222,10 @@ const STRINGS = {
     'status.daily': (date) => `每日快照 · ${date}`,
     'status.liveTitle': (source) => `已於瀏覽器端從 ${source} 補上最新報價。`,
     'status.offlineTitle': '即時補檔失敗（通常是 CORS 阻擋），改用每日更新的快照。',
+    'status.offlineReason': (reason) => `即時補檔失敗 — ${reason}；改用每日更新的快照。`,
+    'status.reason.unreachable': '所有即時來源都失敗或逾時',
+    'status.reason.scale-mismatch': '報價與已存收盤價差距過大，已拒絕採用',
+    'status.reason.stale': '報價比已存的收盤價還舊',
     'meta.summary': (count, start, end, symbol, source) =>
       `${count} 個資料點 · ${start} → ${end} · ${symbol}，來源 ${source}`,
     'meta.proxy': ' · ETF 代理',

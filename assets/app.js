@@ -1048,7 +1048,11 @@ function renderDataStatus() {
   // Say which session it is, so a price that is not moving reads as a closed
   // market rather than a broken page.
   dom.dataStatus.textContent = label + t(`session.${sessionAt()}`);
-  dom.dataStatus.title = live?.ok ? t('status.liveTitle', live.source) : t('status.offlineTitle');
+  dom.dataStatus.title = live?.ok
+    ? t('status.liveTitle', live.source)
+    : live?.reason
+      ? t('status.offlineReason', t(`status.reason.${live.reason}`))
+      : t('status.offlineTitle');
 
   dom.dataMeta.textContent =
     t(
