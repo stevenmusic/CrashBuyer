@@ -3,7 +3,15 @@ name: Update S&P 500 data
 on:
   schedule:
     # 23:10 UTC on weekdays — after the 16:00 ET close in both EST and EDT.
+    # Tiingo (SPY/VOO/IVV/QQQ) has that day's close within the hour, but FRED
+    # (the S&P 500 index) and justETF (CSPX) routinely aren't done publishing
+    # yet at this point — they show up as available a full day late here.
     - cron: '10 23 * * 1-5'
+    # 12:10 UTC on weekdays — well into the next morning in both US and CET
+    # time, catching whatever FRED/justETF finished publishing overnight. A
+    # rerun costs nothing new to commit when they're still behind; the win is
+    # collecting it hours sooner on the days they aren't.
+    - cron: '10 12 * * 1-5'
   workflow_dispatch:
 
 # Serialise runs so two commits never race for the same branch.
