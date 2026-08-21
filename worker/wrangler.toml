@@ -5,3 +5,12 @@ compatibility_date = "2026-01-01"
 # The key is a secret, not a var. Set it in the dashboard under the Worker's
 # Settings -> Variables and Secrets, or with `wrangler secret put FINNHUB_API_KEY`.
 # Never put it in this file: this file is public.
+
+# Shares one upstream Finnhub call across every viewer everywhere, not just
+# within one Cloudflare data center — see worker/README.md's "Cache" section
+# for why this has to be KV rather than caches.default. Uncomment and fill in
+# the id `wrangler kv namespace create QUOTE_CACHE` prints; deploying from the
+# terminal without this binding still works, just without that protection.
+# [[kv_namespaces]]
+# binding = "QUOTE_CACHE"
+# id = "your-namespace-id-here"

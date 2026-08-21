@@ -8,10 +8,10 @@ however often it asks.
 Finnhub does allow a browser to call it, so CORS alone would not need a proxy —
 but the key would then be sitting in the page's JavaScript for anyone to read
 and spend, and every viewer would be spending it separately. Finnhub's free
-tier allows 60 calls a minute; twenty people polling every 15 seconds directly
-would be 80. The Worker holds the key and caches for 15 seconds, which makes
-the upstream cost four calls a minute regardless of how many people are
-watching.
+tier allows 60 calls a minute; a handful of people polling directly could
+already spend that. The Worker holds the key and shares one upstream call
+across every viewer via a KV cache — see **Cache** below for why it is KV and
+not the more obvious `caches.default`.
 
 ## Deploying
 
@@ -48,6 +48,9 @@ tablet.
    and deploy.
 3. The Worker's **Settings → Variables and Secrets** → add `FINNHUB_API_KEY`
    as a **Secret**, not a plaintext variable, and save.
+4. Set up the KV cache — see **Cache** below. The Worker still answers
+   without it, just without the shared-call protection that keeps a handful
+   of viewers from spending Finnhub's whole per-minute quota.
 
 ### Or from a terminal
 
@@ -98,19 +101,44 @@ your own domain if you serve the page from somewhere else. This does not stop a
 determined script calling it directly — CORS never does — but it keeps the
 endpoint from being casually embedded in someone else's page.
 
+## Cache
+
+The share-one-call-across-every-viewer design first used `caches.default`,
+the Workers Cache API, keyed by symbol. That looked right and reads right —
+but it is scoped **per Cloudflare data center, not shared globally**: a
+request landing in a different colo than the one that cached the last quote
+is a miss there regardless. In production this showed up as the status pill
+flapping between live and offline, and `?debug=1` (which always bypasses the
+cache) turning up Finnhub's own 429 HTML page — the free tier's per-minute
+quota was being spent many times over by requests that each looked, from one
+viewer's side, like "just polling every 30 seconds."
+
+KV namespaces are the same account's globally-replicated store, so this uses
+one instead: a hit in one data center counts everywhere. Set it up once —
+
+1. **Storage & Databases → KV → Create a namespace.** Any name, e.g.
+   `crashbuyer-quote-cache`.
+2. Back on the Worker → **Settings → Bindings → Add → KV Namespace.**
+   Variable name **must** be `QUOTE_CACHE`; namespace is the one just
+   created. Save.
+
+Without this binding the Worker still answers every request — it just
+reaches Finnhub every time, same as before this fix, rather than failing.
+
 ## Quota
 
-Finnhub's free tier limits by the minute — 60 calls — rather than by the day,
-which is what makes 15-second polling affordable where Twelve Data's 800-a-day
-was not.
+Finnhub's free tier limits by the minute — 60 calls — rather than by the day.
+KV's own floor for a cache entry's lifetime is 60 seconds, which conveniently
+matches: at most one upstream call per symbol per minute, regardless of how
+many viewers there are or which data center answers each of them.
 
 | Window | Poll | Upstream calls per minute |
 | ------ | ---- | ------------------------- |
-| Regular | 15s | 4 |
-| Pre-market, after hours | 60s | 1 |
+| Regular | 30s | ≤1 |
+| Pre-market, after hours | 60s | ≤1 |
 
-Those numbers do not move with the number of viewers, because the cache means
-they all share one call. Cloudflare's own free tier allows 100,000 requests a
-day, which this is nowhere near. If you ever need to slow it down, raise
-`CACHE_SECONDS` here and the intervals in `assets/session.mjs` together — they
-should match.
+Cloudflare's own free tier allows 100,000 KV reads and 1,000 writes a day,
+which this is nowhere near. If you ever need to change the window, raise
+`CACHE_SECONDS` here and the intervals in `assets/session.mjs` together —
+they should match, and `CACHE_SECONDS` cannot go below 60 (KV's minimum
+`expirationTtl`).

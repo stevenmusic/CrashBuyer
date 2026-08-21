@@ -28,13 +28,14 @@ const ALLOWED_ORIGINS = [
 ];
 
 /**
- * Matches the page's fastest poll, so each request gets a fresh number and no
- * two viewers cost two upstream calls. Finnhub's free tier limits by the
- * minute rather than the day — 60 calls, answered over that with a rate-limit
- * page instead of a quote — and at this window the upstream sees two a minute
- * per symbol however many people are on the page.
+ * Finnhub's free tier limits by the minute rather than the day — 60 calls,
+ * answered over that with a rate-limit page instead of a quote. 60 is also
+ * Workers KV's own floor for expirationTtl, which is convenient: at this
+ * window the upstream sees at most one call a minute per symbol, however
+ * many people are on the page and whichever Cloudflare data center answers
+ * each of them.
  */
-const CACHE_SECONDS = 30;
+const CACHE_SECONDS = 60;
 
 /** en-CA renders as YYYY-MM-DD, which is the shape the page expects. */
 const NY_DATE = new Intl.DateTimeFormat('en-CA', {
@@ -99,12 +100,21 @@ export default {
       return Response.json({ error: 'bad symbol' }, { status: 400, headers: cors });
     }
 
-    // Cache on the symbol alone, so every viewer shares one upstream call.
-    const cacheKey = new Request(`https://quote.cache/${symbol}`, request);
-    const cache = caches.default;
-    const hit = await cache.match(cacheKey);
+    // caches.default looked like the obvious tool for this, but it is scoped
+    // per Cloudflare data center, not shared globally — measured directly:
+    // one visitor's requests can land on different colos minute to minute, so
+    // "every viewer shares one upstream call" was never actually true, and
+    // each colo quietly ran its own independent clock against Finnhub's one
+    // shared 60/minute quota. KV is the same account's globally-replicated
+    // store, so a hit in Tokyo counts everywhere else too. QUOTE_CACHE is a
+    // binding added under the Worker's Settings → Bindings → KV Namespace;
+    // without it this degrades to every request reaching Finnhub, same as
+    // before this fix, rather than failing outright.
+    const kv = env.QUOTE_CACHE;
+    const cacheKey = `quote:${symbol}`;
+    const hit = kv ? await kv.get(cacheKey) : null;
     if (hit && !url.searchParams.has('debug')) {
-      return new Response(hit.body, { headers: { ...Object.fromEntries(hit.headers), ...cors } });
+      return new Response(hit, { headers: { ...cors, 'Content-Type': 'application/json' } });
     }
 
     const upstream = new URL('https://finnhub.io/api/v1/quote');
@@ -151,10 +161,8 @@ export default {
       );
     }
 
-    const res = Response.json(quote, {
-      headers: { ...cors, 'Cache-Control': `public, max-age=${CACHE_SECONDS}` },
-    });
-    ctx.waitUntil(cache.put(cacheKey, res.clone()));
-    return res;
+    const body = JSON.stringify(quote);
+    if (kv) ctx.waitUntil(kv.put(cacheKey, body, { expirationTtl: CACHE_SECONDS }));
+    return new Response(body, { headers: { ...cors, 'Content-Type': 'application/json' } });
   },
 };
