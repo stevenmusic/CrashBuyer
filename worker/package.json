@@ -1,0 +1,6 @@
+{
+  "name": "crashbuyer-quote",
+  "private": true,
+  "description": "CORS-answering quote proxy for CrashBuyer",
+  "version": "1.0.0"
+}

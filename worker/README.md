@@ -19,7 +19,25 @@ You need a free Cloudflare account. No card.
 
 First get a free Finnhub key at <https://finnhub.io/register> — no card.
 
-### From a browser
+### From GitHub, with no copy and paste
+
+The least fiddly route on a phone, where selecting a hundred lines of code out
+of one page and into another is the hard part. Cloudflare builds this directory
+straight from the repository, and redeploys whenever it changes.
+
+1. <https://dash.cloudflare.com> → **Compute** → **Workers** → **Create** →
+   **Connect GitHub**, and authorise the `CrashBuyer` repository.
+2. Set the **root directory** to `worker`. That is what makes Cloudflare read
+   this directory's `wrangler.toml` rather than looking for a Worker at the top
+   of the repository, where there is only a website.
+3. Deploy. Then add the key as below — a build cannot supply it, because a
+   secret is not in the repository.
+
+If the name `crashbuyer-quote` is already taken by a Worker created from the
+Hello World template, delete that one first: its Settings page has the button,
+and recreating under the same name gives back the same URL.
+
+### From a browser, pasting the code
 
 Nothing here needs a terminal, which matters if the machine to hand is a
 tablet.
