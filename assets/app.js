@@ -585,6 +585,25 @@ function scheduleLivePoll() {
   }, wait);
 }
 
+/**
+ * Best-effort top-up against whatever `series` currently is, then arms the
+ * next poll. Shared by boot and by switching instruments, so VOO/IVV/QQQ/CSPX
+ * pick up a live quote the moment they are selected instead of sitting on
+ * yesterday's snapshot until the next scheduled poll tick fires.
+ */
+async function topUpLive() {
+  lastLive = await refreshLive(series);
+  scheduleLivePoll();
+  if (lastLive.ok) {
+    peaks = runningPeaks(series.closes);
+    episodes = drawdownEpisodes(series.closes, episodeThreshold());
+    if (lastLive.added) buildPresets();
+    if (lastLive.added && state.day === series.count - 1) state.day = series.count;
+    render();
+  }
+  renderDataStatus();
+}
+
 function switchLang(lang) {
   setLang(lang);
   for (const button of dom.langSwitch.children) {
@@ -1106,6 +1125,9 @@ async function switchInstrument(id) {
   save();
   render();
   renderDataStatus();
+  // Not awaited: the switch itself should not stall on the network, and the
+  // status pill/range bar update in place once the quote lands.
+  topUpLive();
 }
 
 function buildInstrumentPicker() {
@@ -1185,21 +1207,8 @@ async function main() {
   dom.layout.setAttribute('aria-busy', 'false');
   renderDataStatus();
 
-  // Best-effort top-up; recompute the derived series if it added a bar.
-  lastLive = await refreshLive(series);
-  scheduleLivePoll();
   document.addEventListener('visibilitychange', scheduleLivePoll);
-  if (lastLive.ok) {
-    peaks = runningPeaks(series.closes);
-    episodes = drawdownEpisodes(series.closes, episodeThreshold());
-    // Same staleness as the poll path: a bar added between building the
-    // presets above and this top-up landing leaves Latest pointing one day
-    // short.
-    if (lastLive.added) buildPresets();
-    if (lastLive.added && state.day === series.count - 1) state.day = series.count;
-    render();
-  }
-  renderDataStatus();
+  await topUpLive();
 }
 
 main();

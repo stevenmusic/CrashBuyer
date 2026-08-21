@@ -2,15 +2,18 @@ name: Update S&P 500 data
 
 on:
   schedule:
-    # 23:10 UTC on weekdays — after the 16:00 ET close in both EST and EDT.
-    # Tiingo (SPY/VOO/IVV/QQQ) has that day's close within the hour, but FRED
-    # (the S&P 500 index) and justETF (CSPX) routinely aren't done publishing
-    # yet at this point — they show up as available a full day late here.
-    - cron: '10 23 * * 1-5'
-    # 12:10 UTC on weekdays — well into the next morning in both US and CET
-    # time, catching whatever FRED/justETF finished publishing overnight. A
-    # rerun costs nothing new to commit when they're still behind; the win is
-    # collecting it hours sooner on the days they aren't.
+    # The 16:00 ET close is 20:00 UTC in EDT and 21:00 UTC in EST, and GitHub
+    # Actions cron only understands UTC — it has no idea which one is in
+    # effect on a given day. Rather than track the DST calendar, both times
+    # run every weekday: whichever one lands after today's actual close finds
+    # new data and commits it, and the other one runs into "no new data yet"
+    # or "nothing changed" and quietly no-ops. Together that's a same-day
+    # commit within about 15 minutes of the close, year-round.
+    - cron: '15 20 * * 1-5' # shortly after an EDT close
+    - cron: '15 21 * * 1-5' # shortly after an EST close
+    # 12:10 UTC the next morning, catching whatever FRED (the S&P 500 index)
+    # and justETF (CSPX) hadn't finished publishing by the evening runs —
+    # both routinely lag Tiingo's same-day ETF data by most of a day.
     - cron: '10 12 * * 1-5'
   workflow_dispatch:
 
