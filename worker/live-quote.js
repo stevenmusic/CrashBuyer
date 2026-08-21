@@ -11,6 +11,16 @@
 // GET /?symbol=SPY&debug=1  ->  the upstream response, unchanged, for seeing
 // what a given plan actually returns.
 
+/**
+ * Normally empty: the key belongs in the Worker's encrypted secrets, set from
+ * Settings → Variables and Secrets, and read from `env` below. If that panel
+ * will not cooperate, paste the key here **in the dashboard editor only** and
+ * leave this file's copy empty. The deployed code is private to the Cloudflare
+ * account, so the key is not published — but a secret is still the better
+ * place, because it cannot be read back out once saved.
+ */
+const INLINE_KEY = '';
+
 const ALLOWED_ORIGINS = [
   'https://stevenmusic.github.io',
   'http://localhost:8123',
@@ -89,7 +99,14 @@ export default {
 
     const upstream = new URL('https://finnhub.io/api/v1/quote');
     upstream.searchParams.set('symbol', symbol);
-    upstream.searchParams.set('token', env.FINNHUB_API_KEY);
+    const token = env.FINNHUB_API_KEY || INLINE_KEY;
+    if (!token) {
+      return Response.json(
+        { error: 'no FINNHUB_API_KEY: add it under Settings → Variables and Secrets' },
+        { status: 500, headers: cors }
+      );
+    }
+    upstream.searchParams.set('token', token);
 
     let json;
     try {
