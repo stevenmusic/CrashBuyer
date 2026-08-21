@@ -80,6 +80,10 @@ const dom = {
   curPrice: el('cur-price'),
   curDd: el('cur-dd'),
   curPeak: el('cur-peak'),
+  todayRange: el('today-range'),
+  todayRangeLo: el('today-range-lo'),
+  todayRangeHi: el('today-range-hi'),
+  todayRangeMarker: el('today-range-marker'),
   meterMarker: el('meter-marker'),
   meterTicks: el('meter-ticks'),
   presets: el('presets'),
@@ -555,13 +559,26 @@ function scheduleLivePoll() {
   pollTimer = setTimeout(async () => {
     const before = series.closes.at(-1);
     lastLive = await refreshLive(series);
-    if (lastLive?.ok && series.closes.at(-1) !== before) {
-      peaks = runningPeaks(series.closes);
-      episodes = drawdownEpisodes(series.closes, episodeThreshold());
-      // A new bar lengthens the series. Follow it only if the pointer was
-      // already on the last one, so a rewound view is not yanked forward.
-      if (state.day >= series.count - 1) state.day = series.count;
-      render();
+    if (lastLive?.ok) {
+      if (series.closes.at(-1) !== before) {
+        peaks = runningPeaks(series.closes);
+        episodes = drawdownEpisodes(series.closes, episodeThreshold());
+        // A genuinely new bar, not just a same-day price update, is the only
+        // case that moves what index "today" sits at — the Latest preset's
+        // day number was baked in at boot and goes stale the moment the
+        // series grows, taking anyone who clicks it back to yesterday instead
+        // of forward to what just arrived.
+        if (lastLive.added) buildPresets();
+        // A new bar lengthens the series. Follow it only if the pointer was
+        // already on the last one, so a rewound view is not yanked forward.
+        if (state.day >= series.count - 1) state.day = series.count;
+        render();
+      } else if (state.day === series.count) {
+        // The close held its rounded cents but the day's high/low can still
+        // have moved, so the range bar gets its own cheap refresh rather than
+        // waiting for a render the price itself did not earn.
+        renderTodayRange(market().currentPrice);
+      }
     }
     renderDataStatus();
     scheduleLivePoll();
@@ -606,6 +623,33 @@ function renderMarket({ date, currentPrice, peak, drawdown }) {
   for (const button of dom.presets.children) {
     button.classList.toggle('is-current', Number(button.dataset.day) === state.day);
   }
+
+  renderTodayRange(currentPrice);
+}
+
+/**
+ * Today's high/low, as a small range bar under the price. It costs nothing
+ * extra to have — the live quote call already returns high/low/open — so it
+ * shows whenever they are available, and only then: a rewound day has no
+ * "today" for a range to mean anything about, a fallback source (stooq,
+ * Yahoo) never carries high/low at all, and a stale feed's numbers would be
+ * describing a session that is not this one.
+ */
+function renderTodayRange(currentPrice) {
+  const onTodaysBar = state.day === series.count;
+  const lo = lastLive?.dayLow;
+  const hi = lastLive?.dayHigh;
+  if (!onTodaysBar || !lastLive?.ok || !Number.isFinite(lo) || !Number.isFinite(hi) || hi <= lo) {
+    dom.todayRange.hidden = true;
+    return;
+  }
+
+  dom.todayRange.hidden = false;
+  dom.todayRangeLo.textContent = fmtPrice(lo);
+  dom.todayRangeHi.textContent = fmtPrice(hi);
+  dom.todayRange.title = t('mkt.todayRange', fmtPrice(lo), fmtPrice(hi));
+  const at = Math.min(1, Math.max(0, (currentPrice - lo) / (hi - lo)));
+  dom.todayRangeMarker.style.left = `${at * 100}%`;
 }
 
 function renderPortfolio(pf) {
@@ -1144,6 +1188,10 @@ async function main() {
   if (lastLive.ok) {
     peaks = runningPeaks(series.closes);
     episodes = drawdownEpisodes(series.closes, episodeThreshold());
+    // Same staleness as the poll path: a bar added between building the
+    // presets above and this top-up landing leaves Latest pointing one day
+    // short.
+    if (lastLive.added) buildPresets();
     if (lastLive.added && state.day === series.count - 1) state.day = series.count;
     render();
   }

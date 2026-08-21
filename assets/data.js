@@ -215,8 +215,19 @@ async function proxyQuote(symbol) {
     throw new Error('unusable quote');
   }
   // The proxy names its own upstream when it can; otherwise the slot's name
-  // stands in, so the pill never ends up reading "live · live".
-  return { date, close, source: json?.source ? String(json.source) : undefined };
+  // stands in, so the pill never ends up reading "live · live". high/low/open
+  // are the Worker's optional extras — absent from stooq and Yahoo, and from
+  // any Worker deployed before they were added — so undefined rather than a
+  // number is a real answer, not a bug.
+  const range = (n) => (Number.isFinite(Number(n)) && Number(n) > 0 ? Number(n) : undefined);
+  return {
+    date,
+    close,
+    source: json?.source ? String(json.source) : undefined,
+    dayHigh: range(json?.dayHigh),
+    dayLow: range(json?.dayLow),
+    dayOpen: range(json?.dayOpen),
+  };
 }
 
 const LIVE_SOURCES = [
@@ -254,18 +265,23 @@ export async function refreshLive(series) {
       return { ok: false, reason: 'scale-mismatch' };
     }
 
+    // Only the current day's high/low/open mean anything on the chart; a bar
+    // from a source without them (or a fallback that quotes only the close)
+    // means no range to show, not zero.
+    const range = { dayHigh: quote.dayHigh, dayLow: quote.dayLow, dayOpen: quote.dayOpen };
+
     if (quote.date > series.dates[last]) {
       series.dates.push(quote.date);
       series.closes.push(close);
       series.end = quote.date;
       series.count = series.dates.length;
-      return { ok: true, source: quote.source ?? source.name, added: true, date: quote.date, close };
+      return { ok: true, source: quote.source ?? source.name, added: true, date: quote.date, close, ...range };
     }
 
     if (quote.date === series.dates[last]) {
       const changed = series.closes[last] !== close;
       series.closes[last] = close;
-      return { ok: true, source: quote.source ?? source.name, added: false, changed, date: quote.date, close };
+      return { ok: true, source: quote.source ?? source.name, added: false, changed, date: quote.date, close, ...range };
     }
 
     // Quote older than what is committed (a stale mirror) — ignore it.

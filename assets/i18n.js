@@ -53,6 +53,7 @@ const STRINGS = {
     'mkt.currentPrice': 'Current Price',
     'mkt.currentDrawdown': 'Current Drawdown',
     'mkt.peakToDate': 'Peak To Date',
+    'mkt.todayRange': (lo, hi) => `Today's range: ${lo} – ${hi}`,
     'mkt.prevDay': 'Previous day',
     'mkt.nextDay': 'Next day',
 
@@ -240,6 +241,7 @@ const STRINGS = {
     'mkt.currentPrice': '當前價格',
     'mkt.currentDrawdown': '當前跌幅',
     'mkt.peakToDate': '歷史高點',
+    'mkt.todayRange': (lo, hi) => `今日區間：${lo} – ${hi}`,
     'mkt.prevDay': '前一日',
     'mkt.nextDay': '後一日',
 

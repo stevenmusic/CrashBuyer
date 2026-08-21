@@ -77,6 +77,18 @@
           <div class="readout readout-lead">
             <span class="readout-label" data-i18n="mkt.currentPrice">Current Price</span>
             <b id="cur-price" class="readout-value">—</b>
+            <!-- Today's high/low/open ride along on the same live quote call
+                 that already fetches the price, so this costs nothing extra —
+                 shown only while the session is live and the day pointer sits
+                 on today's bar; a rewound view has no "today" to show a range
+                 for. -->
+            <div id="today-range" class="today-range" hidden>
+              <span id="today-range-lo" class="today-range-num"></span>
+              <span class="today-range-track">
+                <i id="today-range-marker" class="today-range-marker"></i>
+              </span>
+              <span id="today-range-hi" class="today-range-num"></span>
+            </div>
           </div>
           <div class="readout">
             <span class="readout-label" data-i18n="mkt.currentDrawdown">Current Drawdown</span>

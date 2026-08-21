@@ -1623,3 +1623,42 @@ main {
   color: var(--ink-faint);
   font-size: 10px;
 }
+
+
+/* Today's high/low/open range, riding on the CURRENT PRICE tile. Zero extra
+   API cost — the same live quote call already returns them — so it is shown
+   whenever a live session has them, hidden the moment it does not (a rewound
+   day, a stale/blocked feed, or a Worker deployed before this existed). */
+.today-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.today-range-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.today-range-track {
+  position: relative;
+  flex: 1;
+  min-width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.today-range-marker {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-deep);
+  border: 1px solid var(--surface);
+  transform: translate(-50%, -50%);
+}

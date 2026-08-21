@@ -55,6 +55,10 @@ const corsHeaders = (origin) => ({
  * last price it has, which is the honest thing to show — the page says which
  * session it is, so a number that stops moving reads as a closed market.
  *
+ * `h`/`l`/`o` are today's high, low and open. They ride along at no extra
+ * cost — the same call already returns them — and are what lets the page draw
+ * a range indicator instead of only a single moving number.
+ *
  * A symbol Finnhub does not know comes back as zeroes rather than an error,
  * which is why a zero close is rejected here instead of trusted.
  */
@@ -62,6 +66,8 @@ function readQuote(json) {
   const close = Number(json?.c);
   const seconds = Number(json?.t);
   if (!Number.isFinite(close) || close <= 0 || !Number.isFinite(seconds) || seconds <= 0) return null;
+
+  const positive = (n) => (Number.isFinite(n) && n > 0 ? n : null);
 
   return {
     // The New York date, not UTC. After 20:00 ET the UTC clock has already
@@ -71,7 +77,10 @@ function readQuote(json) {
     date: NY_DATE.format(new Date(seconds * 1000)),
     close: Math.round(close * 100) / 100,
     source: 'finnhub',
-    previousClose: Number.isFinite(Number(json?.pc)) ? Number(json.pc) : null,
+    previousClose: positive(Number(json?.pc)),
+    dayHigh: positive(Number(json?.h)),
+    dayLow: positive(Number(json?.l)),
+    dayOpen: positive(Number(json?.o)),
   };
 }
 
