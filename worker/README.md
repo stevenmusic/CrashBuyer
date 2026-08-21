@@ -46,7 +46,7 @@ Either way the Worker has to exist before the secret can attach to it, so
 deploy first. The secret takes effect straight away; no second deploy.
 
 `wrangler deploy` prints the URL, something like
-`https://crashbuyer-quote.<your-subdomain>.workers.dev`.
+`https://crashbuyer-quote.sifan888494.workers.dev`.
 
 ## Pointing the page at it
 
@@ -54,7 +54,7 @@ Uncomment the line in `index.html` and put your URL in it:
 
 ```html
 <script>
-  window.CRASHBUYER_LIVE_URL = 'https://crashbuyer-quote.<your-subdomain>.workers.dev';
+  window.CRASHBUYER_LIVE_URL = 'https://crashbuyer-quote.sifan888494.workers.dev';
 </script>
 ```
 
@@ -64,7 +64,7 @@ it has now.
 ## Checking it
 
 ```sh
-curl 'https://crashbuyer-quote.<subdomain>.workers.dev/?symbol=SPY'
+curl 'https://crashbuyer-quote.sifan888494.workers.dev/?symbol=SPY'
 # {"date":"2026-08-20","close":769.06,"source":"finnhub","previousClose":767.45}
 ```
 
