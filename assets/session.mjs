@@ -35,9 +35,18 @@ export function sessionAt(now = new Date()) {
   return WINDOWS.find((w) => minutes >= w.from && minutes < w.to)?.name ?? 'closed';
 }
 
-/** How often to ask for a fresh quote, in ms. Null when nothing is trading. */
+/**
+ * How often to ask for a fresh quote, in ms. Null when nothing is trading.
+ *
+ * Fifteen seconds in regular hours is fast enough to read as live without
+ * being faster than the decision it feeds: the ladder arms at whole percents,
+ * so a tick-by-tick price would change the number on screen far more often
+ * than it changes what to do about it. The proxy caches to the same window,
+ * so this costs one upstream call per interval no matter how many people are
+ * watching.
+ */
 export function pollInterval(session) {
-  if (session === 'open') return 60_000;
-  if (session === 'pre' || session === 'post') return 180_000;
+  if (session === 'open') return 15_000;
+  if (session === 'pre' || session === 'post') return 60_000;
   return null;
 }

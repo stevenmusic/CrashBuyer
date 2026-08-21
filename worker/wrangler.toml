@@ -2,4 +2,4 @@ name = "crashbuyer-quote"
 main = "live-quote.js"
 compatibility_date = "2026-01-01"
 
-# The key is a secret, not a var: `wrangler secret put TWELVEDATA_API_KEY`.
+# The key is a secret, not a var: `wrangler secret put FINNHUB_API_KEY`.

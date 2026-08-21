@@ -1,9 +1,11 @@
-// Cloudflare Worker: one CORS-answering quote endpoint in front of Twelve Data.
+// Cloudflare Worker: one CORS-answering quote endpoint in front of Finnhub.
 //
-// It exists for two reasons. The browser cannot call a quote API directly —
-// stooq and Yahoo send no Access-Control-Allow-Origin, so their answers are
-// refused however often the page asks — and an API key put in the page's own
-// JavaScript is a key anyone can read and spend.
+// It exists for three reasons. The browser cannot call stooq or Yahoo directly
+// — they send no Access-Control-Allow-Origin, so their answers are refused
+// however often the page asks. An API key put in the page's own JavaScript is
+// a key anyone can read and spend. And the cache means every viewer shares one
+// upstream call, so the rate limit is a property of the site rather than of
+// how many people happen to be watching.
 //
 // GET /?symbol=SPY  ->  { "date": "2026-08-20", "close": 769.06, "session": … }
 // GET /?symbol=SPY&debug=1  ->  the upstream response, unchanged, for seeing
@@ -16,13 +18,20 @@ const ALLOWED_ORIGINS = [
 ];
 
 /**
- * Every viewer shares one upstream call per window. Twelve Data's free tier
- * allows 800 requests a day: a 6.5 hour session polled every 60s is 390, and
- * the extended hours at 180s add about 190, which fits with room to spare —
- * but only because the cache means those totals do not multiply by the number
- * of people watching.
+ * Matches the page's fastest poll, so each request gets a fresh number and no
+ * two viewers cost two upstream calls. Finnhub's free tier limits by the
+ * minute rather than the day — 60 calls — and at this window the upstream sees
+ * four a minute however many people are on the page.
  */
-const CACHE_SECONDS = 60;
+const CACHE_SECONDS = 15;
+
+/** en-CA renders as YYYY-MM-DD, which is the shape the page expects. */
+const NY_DATE = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/New_York',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 const corsHeaders = (origin) => ({
   'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
@@ -31,25 +40,28 @@ const corsHeaders = (origin) => ({
 });
 
 /**
- * Reads the fields this page needs out of Twelve Data's quote. `close` is the
- * last regular-session close; `extended_price` appears outside those hours on
- * plans that carry extended hours, and is preferred when present because that
- * is the number actually trading.
+ * Reads Finnhub's quote shape: `c` is the current price, `pc` the previous
+ * close, `t` a unix timestamp in seconds. Outside regular hours `c` holds the
+ * last price it has, which is the honest thing to show — the page says which
+ * session it is, so a number that stops moving reads as a closed market.
+ *
+ * A symbol Finnhub does not know comes back as zeroes rather than an error,
+ * which is why a zero close is rejected here instead of trusted.
  */
 function readQuote(json) {
-  const extended = Number(json?.extended_price);
-  const regular = Number(json?.close);
-  const close = Number.isFinite(extended) && extended > 0 ? extended : regular;
-  const stamp = String(json?.datetime ?? json?.extended_timestamp ?? '');
-  const date = stamp.slice(0, 10);
+  const close = Number(json?.c);
+  const seconds = Number(json?.t);
+  if (!Number.isFinite(close) || close <= 0 || !Number.isFinite(seconds) || seconds <= 0) return null;
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(close) || close <= 0) return null;
   return {
-    date,
+    // The New York date, not UTC. After 20:00 ET the UTC clock has already
+    // rolled over, so an ISO slice would label an after-hours quote with
+    // tomorrow, and the page would append a bar for a day that has not
+    // happened instead of updating today's.
+    date: NY_DATE.format(new Date(seconds * 1000)),
     close: Math.round(close * 100) / 100,
-    source: 'twelvedata',
-    extended: Number.isFinite(extended) && extended > 0,
-    marketOpen: json?.is_market_open === true,
+    source: 'finnhub',
+    previousClose: Number.isFinite(Number(json?.pc)) ? Number(json.pc) : null,
   };
 }
 
@@ -75,9 +87,9 @@ export default {
       return new Response(hit.body, { headers: { ...Object.fromEntries(hit.headers), ...cors } });
     }
 
-    const upstream = new URL('https://api.twelvedata.com/quote');
+    const upstream = new URL('https://finnhub.io/api/v1/quote');
     upstream.searchParams.set('symbol', symbol);
-    upstream.searchParams.set('apikey', env.TWELVEDATA_API_KEY);
+    upstream.searchParams.set('token', env.FINNHUB_API_KEY);
 
     let json;
     try {
@@ -92,10 +104,8 @@ export default {
 
     const quote = readQuote(json);
     if (!quote) {
-      // Twelve Data reports its own errors in the body with a 200, so pass the
-      // message through rather than inventing a status.
       return Response.json(
-        { error: json?.message ?? 'unusable quote', code: json?.code ?? null },
+        { error: json?.error ?? 'unusable quote', upstream: json ?? null },
         { status: 502, headers: cors }
       );
     }

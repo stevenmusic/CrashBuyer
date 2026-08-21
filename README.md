@@ -169,7 +169,7 @@ answers on `/s/` but 400s on `/i/` for every index symbol;
    upstream response fails that one instrument instead of corrupting it.
 2. **Live during a session.** With a quote proxy deployed (see
    `worker/README.md`) the page refreshes the last bar while the US market is
-   open — every 60s in regular hours, every 180s pre-market and after hours,
+   open — every 15s in regular hours, every 60s pre-market and after hours,
    paused on a hidden tab. Sessions are read off the wall clock in
    `America/New_York`, so the Taipei open moves between 21:30 and 22:30 with
    daylight saving on its own. The status pill names the session, so a price
