@@ -1061,7 +1061,9 @@ function renderDataStatus() {
     ? t('status.live', live.source, formatDate(series.end))
     : bootstrapped
       ? t('status.direct', formatDate(series.end))
-      : t('status.daily', formatDate(series.end));
+      : live?.reason
+        ? t('status.dailyReason', formatDate(series.end), t(`status.reasonShort.${live.reason}`))
+        : t('status.daily', formatDate(series.end));
 
   dom.dataStatus.dataset.state = status;
   // Say which session it is, so a price that is not moving reads as a closed

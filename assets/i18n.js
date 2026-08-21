@@ -25,6 +25,10 @@ const STRINGS = {
     'status.live': (source, date) => `live · ${source} · ${date}`,
     'status.direct': (date) => `direct fetch · ${date}`,
     'status.daily': (date) => `daily snapshot · ${date}`,
+    // The title attribute below is inert on iOS Safari — no hover, no
+    // long-press reveal — so a phone needs the reason visible in the pill
+    // itself, not just in a tooltip only a mouse can open.
+    'status.dailyReason': (date, reason) => `daily snapshot · ${date} · ${reason}`,
     'status.liveTitle': (source) => `Topped up in-browser from ${source}.`,
     'status.offlineTitle':
       'Live top-up unavailable (usually a CORS block); showing the daily committed snapshot.',
@@ -33,6 +37,9 @@ const STRINGS = {
     'status.reason.unreachable': 'every live source failed or timed out',
     'status.reason.scale-mismatch': 'the quote was wildly off the committed close, so it was rejected',
     'status.reason.stale': 'the quote was older than the committed close',
+    'status.reasonShort.unreachable': 'unreachable',
+    'status.reasonShort.scale-mismatch': 'bad quote',
+    'status.reasonShort.stale': 'stale quote',
     'meta.summary': (count, start, end, symbol, source) =>
       `${count} bars · ${start} → ${end} · ${symbol} via ${source}`,
     'meta.proxy': ' · ETF proxy',
@@ -220,11 +227,15 @@ const STRINGS = {
     'status.live': (source, date) => `即時 · ${source} · ${date}`,
     'status.direct': (date) => `即時抓取 · ${date}`,
     'status.daily': (date) => `每日快照 · ${date}`,
+    'status.dailyReason': (date, reason) => `每日快照 · ${date} · ${reason}`,
     'status.liveTitle': (source) => `已於瀏覽器端從 ${source} 補上最新報價。`,
     'status.offlineTitle': '即時補檔失敗（通常是 CORS 阻擋），改用每日更新的快照。',
     'status.offlineReason': (reason) => `即時補檔失敗 — ${reason}；改用每日更新的快照。`,
     'status.reason.unreachable': '所有即時來源都失敗或逾時',
     'status.reason.scale-mismatch': '報價與已存收盤價差距過大，已拒絕採用',
+    'status.reasonShort.unreachable': '無法連線',
+    'status.reasonShort.scale-mismatch': '報價異常',
+    'status.reasonShort.stale': '報價過舊',
     'status.reason.stale': '報價比已存的收盤價還舊',
     'meta.summary': (count, start, end, symbol, source) =>
       `${count} 個資料點 · ${start} → ${end} · ${symbol}，來源 ${source}`,
