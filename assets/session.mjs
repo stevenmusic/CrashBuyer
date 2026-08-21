@@ -38,15 +38,17 @@ export function sessionAt(now = new Date()) {
 /**
  * How often to ask for a fresh quote, in ms. Null when nothing is trading.
  *
- * Fifteen seconds in regular hours is fast enough to read as live without
+ * Thirty seconds in regular hours is fast enough to read as live without
  * being faster than the decision it feeds: the ladder arms at whole percents,
  * so a tick-by-tick price would change the number on screen far more often
- * than it changes what to do about it. The proxy caches to the same window,
- * so this costs one upstream call per interval no matter how many people are
- * watching.
+ * than it changes what to do about it. The proxy caches to the same window
+ * (CACHE_SECONDS in the Worker), so this is also the upstream Finnhub call
+ * rate no matter how many people are watching — Finnhub's free tier caps at
+ * 60 calls/minute, and answers over that with a rate-limit page rather than a
+ * quote, so the margin here is what keeps a normal viewer well clear of it.
  */
 export function pollInterval(session) {
-  if (session === 'open') return 15_000;
+  if (session === 'open') return 30_000;
   if (session === 'pre' || session === 'post') return 60_000;
   return null;
 }

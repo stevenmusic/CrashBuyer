@@ -30,10 +30,11 @@ const ALLOWED_ORIGINS = [
 /**
  * Matches the page's fastest poll, so each request gets a fresh number and no
  * two viewers cost two upstream calls. Finnhub's free tier limits by the
- * minute rather than the day — 60 calls — and at this window the upstream sees
- * four a minute however many people are on the page.
+ * minute rather than the day — 60 calls, answered over that with a rate-limit
+ * page instead of a quote — and at this window the upstream sees two a minute
+ * per symbol however many people are on the page.
  */
-const CACHE_SECONDS = 15;
+const CACHE_SECONDS = 30;
 
 /** en-CA renders as YYYY-MM-DD, which is the shape the page expects. */
 const NY_DATE = new Intl.DateTimeFormat('en-CA', {
@@ -117,11 +118,25 @@ export default {
     }
     upstream.searchParams.set('token', token);
 
-    let json;
+    let text;
     try {
-      json = await (await fetch(upstream, { cf: { cacheTtl: CACHE_SECONDS } })).json();
+      text = await (await fetch(upstream, { cf: { cacheTtl: CACHE_SECONDS } })).text();
     } catch (err) {
       return Response.json({ error: `upstream unreachable: ${err.message}` }, { status: 502, headers: cors });
+    }
+
+    // Finnhub's free tier answers a spent per-minute quota (60 calls) with an
+    // HTML page rather than JSON, so a parse failure here almost always means
+    // that rather than a real outage — worth saying plainly, since the raw
+    // parser error otherwise reads like something is broken.
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return Response.json(
+        { error: 'finnhub rate limit likely exceeded (non-JSON response)', upstream: text.slice(0, 200) },
+        { status: 502, headers: cors }
+      );
     }
 
     if (url.searchParams.has('debug')) {
