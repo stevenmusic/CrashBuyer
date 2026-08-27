@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-26T23:27:36.238Z",
+  "updatedAt": "2026-08-27T00:46:29.826Z",
   "default": "spy",
   "instruments": [
     {
@@ -8,8 +8,8 @@
       "name": "S&P 500",
       "proxy": false,
       "accumulating": false,
-      "start": "2016-08-26",
-      "end": "2026-08-25",
+      "start": "2016-08-29",
+      "end": "2026-08-26",
       "count": 2512
     },
     {
@@ -59,8 +59,8 @@
       "proxy": true,
       "accumulating": true,
       "start": "2010-05-19",
-      "end": "2026-08-25",
-      "count": 5943
+      "end": "2026-08-26",
+      "count": 5944
     }
   ]
 }
