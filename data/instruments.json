@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-03T00:27:58.441Z",
+  "updatedAt": "2026-10-06T01:16:45.301Z",
   "default": "spy",
   "instruments": [
     {
@@ -8,9 +8,9 @@
       "name": "S&P 500",
       "proxy": false,
       "accumulating": false,
-      "start": "2016-10-03",
-      "end": "2026-10-02",
-      "count": 2514
+      "start": "2016-10-06",
+      "end": "2026-10-05",
+      "count": 2512
     },
     {
       "id": "spy",
@@ -19,8 +19,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2000-01-03",
-      "end": "2026-10-02",
-      "count": 6728
+      "end": "2026-10-05",
+      "count": 6729
     },
     {
       "id": "voo",
@@ -29,8 +29,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2010-09-09",
-      "end": "2026-10-02",
-      "count": 4041
+      "end": "2026-10-05",
+      "count": 4042
     },
     {
       "id": "ivv",
@@ -39,8 +39,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2000-05-19",
-      "end": "2026-10-02",
-      "count": 6632
+      "end": "2026-10-05",
+      "count": 6633
     },
     {
       "id": "qqq",
@@ -49,8 +49,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2000-01-03",
-      "end": "2026-10-02",
-      "count": 6728
+      "end": "2026-10-05",
+      "count": 6729
     },
     {
       "id": "cspx",
@@ -59,8 +59,8 @@
       "proxy": true,
       "accumulating": true,
       "start": "2010-05-19",
-      "end": "2026-10-02",
-      "count": 5981
+      "end": "2026-10-05",
+      "count": 5984
     }
   ]
 }
