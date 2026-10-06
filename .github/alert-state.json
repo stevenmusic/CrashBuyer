@@ -1,4 +1,6 @@
 {
   "seeded": true,
-  "bands": {}
+  "bands": {
+    "spy": 0
+  }
 }
