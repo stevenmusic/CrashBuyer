@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-15T23:40:42.295Z",
+  "updatedAt": "2026-10-16T16:34:16.981Z",
   "default": "spy",
   "instruments": [
     {
@@ -9,8 +9,8 @@
       "proxy": false,
       "accumulating": false,
       "start": "2016-10-17",
-      "end": "2026-10-14",
-      "count": 2512
+      "end": "2026-10-15",
+      "count": 2513
     },
     {
       "id": "spy",
