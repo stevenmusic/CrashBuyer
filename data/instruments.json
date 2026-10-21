@@ -1,17 +1,7 @@
 {
-  "updatedAt": "2026-10-20T23:50:52.360Z",
+  "updatedAt": "2026-10-21T17:07:03.728Z",
   "default": "spy",
   "instruments": [
-    {
-      "id": "sp500",
-      "symbol": "^GSPC",
-      "name": "S&P 500",
-      "proxy": false,
-      "accumulating": false,
-      "start": "2016-10-20",
-      "end": "2026-10-19",
-      "count": 2512
-    },
     {
       "id": "spy",
       "symbol": "SPY",
