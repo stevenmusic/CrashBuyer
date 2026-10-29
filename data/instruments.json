@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-29T18:25:55.641Z",
+  "updatedAt": "2026-10-29T23:55:12.782Z",
   "default": "spy",
   "instruments": [
     {
@@ -19,8 +19,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2000-01-03",
-      "end": "2026-10-28",
-      "count": 6746
+      "end": "2026-10-29",
+      "count": 6747
     },
     {
       "id": "voo",
@@ -29,8 +29,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2010-09-09",
-      "end": "2026-10-28",
-      "count": 4059
+      "end": "2026-10-29",
+      "count": 4060
     },
     {
       "id": "ivv",
@@ -39,8 +39,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2000-05-19",
-      "end": "2026-10-28",
-      "count": 6650
+      "end": "2026-10-29",
+      "count": 6651
     },
     {
       "id": "qqq",
@@ -49,8 +49,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2000-01-03",
-      "end": "2026-10-28",
-      "count": 6746
+      "end": "2026-10-29",
+      "count": 6747
     },
     {
       "id": "cspx",
@@ -59,8 +59,8 @@
       "proxy": true,
       "accumulating": true,
       "start": "2010-05-19",
-      "end": "2026-10-28",
-      "count": 6007
+      "end": "2026-10-29",
+      "count": 6008
     }
   ]
 }
