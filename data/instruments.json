@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-02T21:41:08.555Z",
+  "updatedAt": "2026-11-03T02:14:54.172Z",
   "default": "spy",
   "instruments": [
     {
@@ -29,8 +29,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2010-09-09",
-      "end": "2026-10-30",
-      "count": 4061
+      "end": "2026-11-02",
+      "count": 4062
     },
     {
       "id": "ivv",
@@ -39,8 +39,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2000-05-19",
-      "end": "2026-10-30",
-      "count": 6652
+      "end": "2026-11-02",
+      "count": 6653
     },
     {
       "id": "qqq",
@@ -59,8 +59,8 @@
       "proxy": true,
       "accumulating": true,
       "start": "2010-05-19",
-      "end": "2026-10-30",
-      "count": 6009
+      "end": "2026-11-02",
+      "count": 6012
     }
   ]
 }
