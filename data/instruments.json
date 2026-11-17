@@ -1,17 +1,7 @@
 {
-  "updatedAt": "2026-11-16T21:56:59.948Z",
+  "updatedAt": "2026-11-17T02:53:45.960Z",
   "default": "spy",
   "instruments": [
-    {
-      "id": "sp500",
-      "symbol": "^GSPC",
-      "name": "S&P 500",
-      "proxy": false,
-      "accumulating": false,
-      "start": "2016-11-14",
-      "end": "2026-11-13",
-      "count": 2514
-    },
     {
       "id": "spy",
       "symbol": "SPY",
@@ -39,8 +29,8 @@
       "proxy": true,
       "accumulating": false,
       "start": "2000-05-19",
-      "end": "2026-11-13",
-      "count": 6662
+      "end": "2026-11-16",
+      "count": 6663
     },
     {
       "id": "qqq",
@@ -59,8 +49,8 @@
       "proxy": true,
       "accumulating": true,
       "start": "2010-05-19",
-      "end": "2026-11-13",
-      "count": 6023
+      "end": "2026-11-16",
+      "count": 6026
     }
   ]
 }
