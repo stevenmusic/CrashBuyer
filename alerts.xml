@@ -5,6 +5,12 @@
   <id>https://stevenmusic.github.io/CrashBuyer/alerts.xml</id>
   <link href="https://stevenmusic.github.io/CrashBuyer/alerts.xml" rel="self"/>
   <link href="https://stevenmusic.github.io/CrashBuyer"/>
-  <updated>2026-11-20T20:06:06.303Z</updated>
-
+  <updated>2026-11-21T01:26:22.567Z</updated>
+  <entry>
+    <title>SPY crossed −10% — now 11.46% below its peak</title>
+    <id>tag:crashbuyer,2026-11-20:spy-10</id>
+    <updated>2026-11-21T01:26:22.567Z</updated>
+    <link href="https://stevenmusic.github.io/CrashBuyer"/>
+    <summary>SPY · SPDR S&amp;P 500 closed at 689.81 on 2026-11-20. Peak to date 779.09, drawdown −11.46%. The −10% rung of the ladder is armed.</summary>
+  </entry>
 </feed>

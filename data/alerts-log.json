@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "spy",
+    "symbol": "SPY",
+    "name": "SPY · SPDR S&P 500",
+    "date": "2026-11-20",
+    "close": 689.81,
+    "peak": 779.09,
+    "drop": "-11.46",
+    "level": 10,
+    "deepestRung": 10,
+    "at": "2026-11-21T01:26:22.567Z"
+  }
+]
